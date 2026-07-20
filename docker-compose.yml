@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: simgeo_postgis
+    environment:
+      - POSTGRES_DB=simgeo
+      - POSTGRES_USER=simgeo_user
+      - POSTGRES_PASSWORD=simgeo_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: simgeo_redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: simgeo_pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@simgeo.local
+      - PGADMIN_DEFAULT_PASSWORD=admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    restart: unless-stopped
+
+volumes:
+  postgis_data:
