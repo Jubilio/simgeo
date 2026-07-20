@@ -28,6 +28,9 @@ INSTALLED_APPS = [
     # Local apps
     'accounts',
     'maps',
+    'simulation',
+    'analytics',
+    'reports',
     'hazards',
     'api',
 ]
