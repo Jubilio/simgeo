@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
+import MapLayers from './components/MapLayers';
+import GEELayer from './components/GEELayer';
 
 const API_URL = 'http://localhost:8000/api/';
 
@@ -8,6 +10,14 @@ function App() {
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Estado das camadas do mapa
+  const [showBoundaries, setShowBoundaries] = useState(false);
+  const [showInfrastructure, setShowInfrastructure] = useState(false);
+  
+  // Estado da Simulação GEE
+  const [simGEEFlood, setSimGEEFlood] = useState(false);
+  const [waterLevel, setWaterLevel] = useState(2.0);
 
   useEffect(() => {
     // Tenta conectar à API do Django
@@ -44,22 +54,71 @@ function App() {
 
         {/* Menu Items */}
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-2 px-3">Módulos</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-2 px-3">Camadas Base</div>
           
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-500/10 text-indigo-300 font-medium transition-all border border-indigo-500/20">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-            Visualizador GIS
+          <button 
+            onClick={() => setShowBoundaries(!showBoundaries)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showBoundaries ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+              Limites Admin.
+            </div>
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${showBoundaries ? 'bg-indigo-500' : 'bg-slate-600'}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showBoundaries ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showBoundaries ? 'translateX(14px)' : 'translateX(0)' }}></div>
+            </div>
+          </button>
+
+          <button 
+            onClick={() => setShowInfrastructure(!showInfrastructure)}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showInfrastructure ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+          >
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+              Infraestrutura
+            </div>
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${showInfrastructure ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showInfrastructure ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showInfrastructure ? 'translateX(14px)' : 'translateX(0)' }}></div>
+            </div>
           </button>
           
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-            Simulação de Cheias
-          </button>
-          
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-            Simulação de Ciclones
-          </button>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-6 px-3 border-t border-slate-700/50 pt-4">Simuladores (GEE)</div>
+
+          <div className="px-3">
+            <button 
+              onClick={() => setSimGEEFlood(!simGEEFlood)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${simGEEFlood ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                Inundação Costeira
+              </div>
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${simGEEFlood ? 'bg-cyan-500' : 'bg-slate-600'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${simGEEFlood ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: simGEEFlood ? 'translateX(14px)' : 'translateX(0)' }}></div>
+              </div>
+            </button>
+            
+            {simGEEFlood && (
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 mt-2 mb-4 transition-all">
+                <label className="text-xs text-slate-400 flex justify-between mb-2">
+                  <span>Nível da Água (m)</span>
+                  <span className="font-mono text-cyan-400 font-bold">{waterLevel}m</span>
+                </label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="15" 
+                  step="0.5"
+                  value={waterLevel}
+                  onChange={(e) => setWaterLevel(parseFloat(e.target.value))}
+                  className="w-full accent-cyan-500 bg-slate-700 rounded-lg appearance-none h-2"
+                />
+                <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
+                  Utiliza o DEM SRTM via Google Earth Engine para simular a elevação do nível do mar em tempo real.
+                </p>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Backend Status Card */}
@@ -87,13 +146,7 @@ function App() {
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
-                  <span className="text-sm text-emerald-400 font-medium">Conectado com Sucesso</span>
-                </div>
-                
-                <div className="bg-slate-800/80 rounded border border-slate-700/50 p-2.5 overflow-hidden">
-                  <div className="text-[10px] text-slate-500 font-mono mb-1">DADOS DA API:</div>
-                  <div className="text-xs text-indigo-300 font-mono truncate">{apiData?.platform}</div>
-                  <div className="text-[10px] text-slate-400 font-mono mt-1">v{apiData?.version}</div>
+                  <span className="text-sm text-emerald-400 font-medium">Conectado</span>
                 </div>
               </div>
             )}
@@ -107,7 +160,7 @@ function App() {
         <div className="absolute top-0 left-0 right-0 h-16 bg-slate-900/60 backdrop-blur-md z-[1000] border-b border-white/5 flex items-center justify-between px-6 pointer-events-none">
           <div className="flex items-center gap-4">
              <div className="px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300 pointer-events-auto shadow-lg">
-                Moçambique Central
+                Sofala, Moçambique
              </div>
           </div>
           <div className="flex items-center gap-4 pointer-events-auto">
@@ -134,15 +187,15 @@ function App() {
             
             <ZoomControl position="bottomright" />
             
-            {/* Marcador Exemplo Beira */}
-            <Marker position={[-19.8436, 34.8389]}>
-              <Popup className="simgeo-popup">
-                <div className="p-1">
-                  <h3 className="font-bold text-slate-800">Beira, Sofala</h3>
-                  <p className="text-xs text-slate-500 mt-1">Ponto de Alto Risco (Ciclones)</p>
-                </div>
-              </Popup>
-            </Marker>
+            <MapLayers 
+              showBoundaries={showBoundaries} 
+              showInfrastructure={showInfrastructure} 
+            />
+            
+            <GEELayer 
+              active={simGEEFlood} 
+              waterLevel={waterLevel} 
+            />
             
           </MapContainer>
         </div>

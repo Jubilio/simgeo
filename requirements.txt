@@ -8,3 +8,5 @@ django-cors-headers==4.7.0
 python-decouple==3.8
 Pillow==11.2.1
 gunicorn==23.0.0
+earthengine-api>=1.7.0
+google-auth>=2.20.0
