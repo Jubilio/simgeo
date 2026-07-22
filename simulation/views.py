@@ -30,7 +30,16 @@ class GEEFloodSimulationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         except Exception as e:
+            error_msg = str(e)
+            if "not initialized" in error_msg.lower() or "authorize" in error_msg.lower():
+                return Response(
+                    {
+                        'error': 'Google Earth Engine não autenticado no servidor local.',
+                        'detail': 'Por favor execute `.\\venv\\Scripts\\earthengine authenticate` no terminal PowerShell.'
+                    }, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
             return Response(
-                {'error': str(e)}, 
+                {'error': error_msg}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
