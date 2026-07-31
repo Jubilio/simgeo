@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
-import MapLayers from './components/MapLayers';
-import GEELayer from './components/GEELayer';
+import Map from 'react-map-gl/maplibre';
+import DeckGL from '@deck.gl/react';
+import useMapLayers from './components/MapLayers';
+import useGEELayer from './components/GEELayer';
 
 const API_URL = 'http://localhost:8000/api/';
 
-function App() {
+const INITIAL_VIEW_STATE = {
+  longitude: 34.84,
+  latitude: -19.83,
+  zoom: 6,
+  pitch: 45,
+  bearing: 0
+};
+
+export default function App() {
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,6 +27,10 @@ function App() {
   // Estado da Simulação GEE
   const [simGEEFlood, setSimGEEFlood] = useState(false);
   const [waterLevel, setWaterLevel] = useState(2.0);
+  const [geeError, setGeeError] = useState(null);
+
+  // Tooltip UI
+  const [tooltipInfo, setTooltipInfo] = useState(null);
 
   useEffect(() => {
     // Tenta conectar à API do Django
@@ -32,6 +45,18 @@ function App() {
         setLoading(false);
       });
   }, []);
+
+  const vectorLayers = useMapLayers({
+    showBoundaries,
+    showInfrastructure,
+    setTooltipInfo
+  });
+
+  const geeLayers = useGEELayer({
+    active: simGEEFlood,
+    waterLevel,
+    setErrorMessage: setGeeError
+  });
 
   return (
     <div className="flex h-screen w-full bg-slate-900 text-slate-100 font-sans overflow-hidden">
@@ -171,38 +196,44 @@ function App() {
         </div>
 
         {/* Map Container */}
-        <div className="absolute inset-0 z-10">
-          <MapContainer 
-            center={[-19.83, 34.84]} // Sofala, Moçambique (Beira area)
-            zoom={7} 
-            zoomControl={false}
-            className="w-full h-full bg-[#1a1d24]"
-            style={{ backgroundColor: '#1a1d24' }}
+        <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
+          <DeckGL
+            initialViewState={INITIAL_VIEW_STATE}
+            controller={true}
+            layers={[...geeLayers, ...vectorLayers]} // GEE na base, vectors por cima
           >
-            {/* Usando um base map escuro e moderno da CartoDB */}
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            {/* Mapa Base: Carto Dark Matter */}
+            <Map
+              mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
             />
-            
-            <ZoomControl position="bottomright" />
-            
-            <MapLayers 
-              showBoundaries={showBoundaries} 
-              showInfrastructure={showInfrastructure} 
-            />
-            
-            <GEELayer 
-              active={simGEEFlood} 
-              waterLevel={waterLevel} 
-            />
-            
-          </MapContainer>
+
+            {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
+            {tooltipInfo && (
+              <div
+                className="absolute z-[1000] bg-slate-900/90 backdrop-blur text-white p-3 rounded-lg shadow-xl border border-slate-700 min-w-40 pointer-events-none"
+                style={{ left: tooltipInfo.x + 15, top: tooltipInfo.y + 15 }}
+              >
+                <div className="font-bold text-sm text-indigo-300 mb-1">{tooltipInfo.title}</div>
+                {tooltipInfo.subtitle && <div className="text-slate-300 text-xs">{tooltipInfo.subtitle}</div>}
+                {tooltipInfo.detail && <div className="text-slate-400 text-xs mt-1 pt-1 border-t border-slate-700">{tooltipInfo.detail}</div>}
+              </div>
+            )}
+          </DeckGL>
+
+          {simGEEFlood && geeError && (
+            <div className="absolute bottom-6 left-6 z-[1000]">
+              <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
+                <div className="flex items-center gap-2 font-bold text-amber-400">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Google Earth Engine Requer Autenticação
+                </div>
+                <p className="text-slate-300">{geeError}</p>
+              </div>
+            </div>
+          )}
         </div>
       </main>
       
     </div>
   );
 }
-
-export default App;
