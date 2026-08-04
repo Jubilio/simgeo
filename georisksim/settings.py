@@ -131,5 +131,7 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 100,
 }
 
-GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH', default=None)
-GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default=None)
+import sys
+if sys.platform == 'win32':
+    GDAL_LIBRARY_PATH = config('GDAL_LIBRARY_PATH', default=None)
+    GEOS_LIBRARY_PATH = config('GEOS_LIBRARY_PATH', default=None)

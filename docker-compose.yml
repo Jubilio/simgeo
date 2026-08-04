@@ -33,5 +33,26 @@ services:
       - db
     restart: unless-stopped
 
+  api:
+    build: .
+    container_name: simgeo_api
+    command: /app/entrypoint.sh
+    volumes:
+      - .:/app
+      - ~/.config/earthengine:/root/.config/earthengine:ro
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=simgeo
+      - DB_USER=simgeo_user
+      - DB_PASSWORD=simgeo_pass
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
 volumes:
   postgis_data:

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import Map from 'react-map-gl/maplibre';
 import DeckGL from '@deck.gl/react';
+import { _GlobeView as GlobeView } from '@deck.gl/core';
+import { TileLayer } from '@deck.gl/geo-layers';
+import { BitmapLayer } from '@deck.gl/layers';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
 
@@ -10,8 +12,8 @@ const API_URL = 'http://localhost:8000/api/';
 const INITIAL_VIEW_STATE = {
   longitude: 34.84,
   latitude: -19.83,
-  zoom: 6,
-  pitch: 45,
+  zoom: 1.5, // Zoom mais afastado para ver o globo
+  pitch: 30,
   bearing: 0
 };
 
@@ -58,12 +60,32 @@ export default function App() {
     setErrorMessage: setGeeError
   });
 
+  // Base Map Layer nativo do Deck.gl (Raster)
+  const baseMapLayer = new TileLayer({
+    id: 'carto-basemap',
+    data: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    minZoom: 0,
+    maxZoom: 19,
+    tileSize: 256,
+    renderSubLayers: props => {
+      const {
+        bbox: { west, south, east, north }
+      } = props.tile;
+
+      return new BitmapLayer(props, {
+        data: null,
+        image: props.data,
+        bounds: [west, south, east, north]
+      });
+    }
+  });
+
   return (
-    <div className="flex h-screen w-full bg-slate-900 text-slate-100 font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden">
       
       {/* Sidebar Principal */}
-      <aside className="w-72 bg-slate-800/80 backdrop-blur-xl border-r border-slate-700 flex flex-col shadow-2xl z-20">
-        <div className="p-6 border-b border-slate-700/50">
+      <aside className="w-72 bg-slate-900/80 backdrop-blur-xl border-r border-slate-800 flex flex-col shadow-2xl z-20">
+        <div className="p-6 border-b border-slate-800/50">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,48 +105,48 @@ export default function App() {
           
           <button 
             onClick={() => setShowBoundaries(!showBoundaries)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showBoundaries ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showBoundaries ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
           >
             <div className="flex items-center gap-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
               Limites Admin.
             </div>
-            <div className={`w-8 h-4 rounded-full transition-colors relative ${showBoundaries ? 'bg-indigo-500' : 'bg-slate-600'}`}>
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${showBoundaries ? 'bg-indigo-500' : 'bg-slate-700'}`}>
               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showBoundaries ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showBoundaries ? 'translateX(14px)' : 'translateX(0)' }}></div>
             </div>
           </button>
 
           <button 
             onClick={() => setShowInfrastructure(!showInfrastructure)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showInfrastructure ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showInfrastructure ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
           >
             <div className="flex items-center gap-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
               Infraestrutura
             </div>
-            <div className={`w-8 h-4 rounded-full transition-colors relative ${showInfrastructure ? 'bg-emerald-500' : 'bg-slate-600'}`}>
+            <div className={`w-8 h-4 rounded-full transition-colors relative ${showInfrastructure ? 'bg-emerald-500' : 'bg-slate-700'}`}>
               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showInfrastructure ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showInfrastructure ? 'translateX(14px)' : 'translateX(0)' }}></div>
             </div>
           </button>
           
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-6 px-3 border-t border-slate-700/50 pt-4">Simuladores (GEE)</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-6 px-3 border-t border-slate-800/50 pt-4">Simuladores (GEE)</div>
 
           <div className="px-3">
             <button 
               onClick={() => setSimGEEFlood(!simGEEFlood)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${simGEEFlood ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 border-transparent'}`}
+              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${simGEEFlood ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Inundação Costeira
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${simGEEFlood ? 'bg-cyan-500' : 'bg-slate-600'}`}>
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${simGEEFlood ? 'bg-cyan-500' : 'bg-slate-700'}`}>
                 <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${simGEEFlood ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: simGEEFlood ? 'translateX(14px)' : 'translateX(0)' }}></div>
               </div>
             </button>
             
             {simGEEFlood && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-700 mt-2 mb-4 transition-all">
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
                 <label className="text-xs text-slate-400 flex justify-between mb-2">
                   <span>Nível da Água (m)</span>
                   <span className="font-mono text-cyan-400 font-bold">{waterLevel}m</span>
@@ -136,7 +158,7 @@ export default function App() {
                   step="0.5"
                   value={waterLevel}
                   onChange={(e) => setWaterLevel(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-500 bg-slate-700 rounded-lg appearance-none h-2"
+                  className="w-full accent-cyan-500 bg-slate-800 rounded-lg appearance-none h-2"
                 />
                 <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
                   Utiliza o DEM SRTM via Google Earth Engine para simular a elevação do nível do mar em tempo real.
@@ -147,8 +169,8 @@ export default function App() {
         </nav>
 
         {/* Backend Status Card */}
-        <div className="p-4 border-t border-slate-700/50">
-          <div className="bg-slate-900/50 rounded-xl p-4 border border-slate-700 shadow-inner">
+        <div className="p-4 border-t border-slate-800/50">
+          <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800 shadow-inner">
             <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
               <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
               Django API Status
@@ -180,7 +202,7 @@ export default function App() {
       </aside>
 
       {/* Main Content Area (Map) */}
-      <main className="flex-1 relative bg-[#1a1d24]">
+      <main className="flex-1 relative bg-[#020617]"> {/* Fundo do espaço sideral */}
         {/* Navbar superior com Blur */}
         <div className="absolute top-0 left-0 right-0 h-16 bg-slate-900/60 backdrop-blur-md z-[1000] border-b border-white/5 flex items-center justify-between px-6 pointer-events-none">
           <div className="flex items-center gap-4">
@@ -198,15 +220,11 @@ export default function App() {
         {/* Map Container */}
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
           <DeckGL
+            views={new GlobeView()}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
-            layers={[...geeLayers, ...vectorLayers]} // GEE na base, vectors por cima
+            layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
           >
-            {/* Mapa Base: Carto Dark Matter */}
-            <Map
-              mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
-            />
-
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (
               <div
