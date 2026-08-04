@@ -1,7 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .services.gee_service import get_flood_simulation_tiles, get_lulc_tiles, get_lithology_tiles
+from .services.gee_service import get_flood_simulation_tiles, get_lulc_tiles, get_lithology_tiles, get_groundwater_tiles, get_groundwater_timeseries
 
 class GEEFloodSimulationView(APIView):
     """
@@ -96,3 +96,40 @@ class GEELithologyView(APIView):
                 {'error': error_msg}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class GEEGroundwaterMapView(APIView):
+    """
+    Endpoint para obter os tiles mensais de Águas Subterrâneas (GLDAS).
+    """
+    def get(self, request):
+        try:
+            year = int(request.query_params.get('year', 2023))
+            month = int(request.query_params.get('month', 1))
+            gee_data = get_groundwater_tiles(year=year, month=month)
+            return Response({
+                'status': 'success',
+                'year': year,
+                'month': month,
+                'gee_layer': gee_data
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GEEGroundwaterTimeseriesView(APIView):
+    """
+    Endpoint POST para extrair a série temporal agregada de Águas Subterrâneas.
+    """
+    def post(self, request):
+        try:
+            start_date = request.data.get('start_date', '2023-01-01')
+            end_date = request.data.get('end_date', '2023-12-31')
+            points = request.data.get('points', [])
+            
+            timeseries = get_groundwater_timeseries(start_date, end_date, points)
+            
+            return Response({
+                'status': 'success',
+                'timeseries': timeseries
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
