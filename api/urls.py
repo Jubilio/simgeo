@@ -3,7 +3,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from maps.views import AdministrativeBoundaryViewSet, InfrastructureViewSet
-from simulation.views import GEEFloodSimulationView
+from simulation.views import GEEFloodSimulationView, GEELULCView, GEELithologyView
 
 router = DefaultRouter()
 router.register(r'boundaries', AdministrativeBoundaryViewSet, basename='boundary')
@@ -21,11 +21,15 @@ class APIRootView(APIView):
                 'boundaries': request.build_absolute_uri('boundaries/'),
                 'infrastructures': request.build_absolute_uri('infrastructures/'),
                 'simulation_gee_flood': request.build_absolute_uri('simulation/gee/flood/'),
+                'simulation_gee_lulc': request.build_absolute_uri('simulation/gee/lulc/'),
+                'simulation_gee_lithology': request.build_absolute_uri('simulation/gee/lithology/'),
             }
         })
 
 urlpatterns = [
     path('', APIRootView.as_view(), name='api-root'),
     path('simulation/gee/flood/', GEEFloodSimulationView.as_view(), name='gee-flood'),
+    path('simulation/gee/lulc/', GEELULCView.as_view(), name='gee-lulc'),
+    path('simulation/gee/lithology/', GEELithologyView.as_view(), name='gee-lithology'),
     path('', include(router.urls)),
 ]

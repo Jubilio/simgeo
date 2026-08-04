@@ -28,6 +28,9 @@ export default function App() {
   
   // Estado da Simulação GEE
   const [simGEEFlood, setSimGEEFlood] = useState(false);
+  const [showLULC, setShowLULC] = useState(false);
+  const [showLithology, setShowLithology] = useState(false);
+  const [lithologyType, setLithologyType] = useState('kaolinite');
   const [waterLevel, setWaterLevel] = useState(2.0);
   const [geeError, setGeeError] = useState(null);
 
@@ -55,8 +58,11 @@ export default function App() {
   });
 
   const geeLayers = useGEELayer({
-    active: simGEEFlood,
+    activeFlood: simGEEFlood,
     waterLevel,
+    activeLULC: showLULC,
+    activeLithology: showLithology,
+    lithologyType,
     setErrorMessage: setGeeError
   });
 
@@ -144,6 +150,93 @@ export default function App() {
                 <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${simGEEFlood ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: simGEEFlood ? 'translateX(14px)' : 'translateX(0)' }}></div>
               </div>
             </button>
+            
+            {simGEEFlood && (
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+                <label className="text-xs text-slate-400 flex justify-between mb-2">
+                  <span>Nível da Água (m)</span>
+                  <span className="font-mono text-cyan-400 font-bold">{waterLevel}m</span>
+                </label>
+                <input 
+                  type="range" 
+                  min="0" 
+                  max="15" 
+                  step="0.5"
+                  value={waterLevel}
+                  onChange={(e) => setWaterLevel(parseFloat(e.target.value))}
+                  className="w-full accent-cyan-500 bg-slate-800 rounded-lg appearance-none h-2"
+                />
+                <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
+                  Utiliza o DEM SRTM via Google Earth Engine para simular a elevação do nível do mar em tempo real.
+                </p>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowLULC(!showLULC)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showLULC ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                Uso do Solo (LULC)
+              </div>
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${showLULC ? 'bg-fuchsia-500' : 'bg-slate-700'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showLULC ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showLULC ? 'translateX(14px)' : 'translateX(0)' }}></div>
+              </div>
+            </button>
+            
+            {showLULC && (
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+                <h4 className="text-xs font-semibold text-slate-300 mb-2">Legenda (ESA WorldCover)</h4>
+                <div className="space-y-1.5 text-xs text-slate-400">
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#006400'}}></div> Vegetação</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#90EE90'}}></div> Agricultura</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#FFFF00'}}></div> Solo Nu</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#00FFFF'}}></div> Corpos de Água</div>
+                  <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#808080'}}></div> Área Urbana</div>
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setShowLithology(!showLithology)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showLithology ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                Análise Litológica (ASTER)
+              </div>
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${showLithology ? 'bg-orange-500' : 'bg-slate-700'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showLithology ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showLithology ? 'translateX(14px)' : 'translateX(0)' }}></div>
+              </div>
+            </button>
+            
+            {showLithology && (
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+                <label className="text-xs text-slate-400 flex justify-between mb-2">
+                  <span>Índice Mineral</span>
+                </label>
+                <select 
+                  value={lithologyType} 
+                  onChange={(e) => setLithologyType(e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg p-2 mb-3 outline-none focus:border-orange-500/50"
+                >
+                  <option value="kaolinite">Caulinita (Kaolinite)</option>
+                  <option value="alunite">Alunita (Alunite)</option>
+                  <option value="calcite">Calcita (Calcite)</option>
+                  <option value="quartz">Quartzo (Quartz)</option>
+                  <option value="carbonate">Carbonatos (Carbonate)</option>
+                  <option value="mafic">Rochas Máficas (Mafic)</option>
+                </select>
+
+                <div className="text-xs text-slate-400 mb-1">Concentração (Heatmap)</div>
+                <div className="h-2 w-full rounded-full bg-gradient-to-r from-[#440154] via-[#2a788e] to-[#fde725]"></div>
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1">
+                  <span>Baixa</span>
+                  <span>Alta</span>
+                </div>
+              </div>
+            )}
             
             {simGEEFlood && (
               <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
