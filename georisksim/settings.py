@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'reports',
     'hazards',
     'api',
+    'ai_agent',
 ]
 
 MIDDLEWARE = [

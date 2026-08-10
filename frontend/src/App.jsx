@@ -23,6 +23,16 @@ export default function App() {
   const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
+
+  // Estado do Chatbot (Assistente IA)
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    { role: 'assistant', content: 'Olá! Sou o Assistente de Inteligência Artificial do SimGeo. Como o posso ajudar hoje com as suas análises espaciais?' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+
   
   // Estado das camadas do mapa
   const [showBoundaries, setShowBoundaries] = useState(false);
@@ -181,6 +191,42 @@ export default function App() {
     const point = turf.point([lng, lat]);
     const buffered = turf.buffer(point, radiusKm, { units: 'kilometers' });
     setBufferData(buffered);
+  };
+
+  // Enviar Mensagem para o Assistente IA
+  const handleSendChatMessage = async () => {
+    if (!chatInput.trim()) return;
+    
+    const userMessage = chatInput;
+    setChatMessages(prev => [...prev, { role: 'user', content: userMessage }]);
+    setChatInput('');
+    setChatLoading(true);
+
+    try {
+      const res = await axios.post(`${API_URL}agent/chat/`, { message: userMessage });
+      const data = res.data;
+      
+      setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
+      
+      // Executar ações do agente no mapa
+      if (data.action) {
+        if (data.action.type === 'flyTo') {
+          setViewState(prev => ({
+            ...prev,
+            longitude: data.action.coordinates[0],
+            latitude: data.action.coordinates[1],
+            zoom: data.action.zoom || 12,
+            transitionDuration: 2000
+          }));
+        } else if (data.action.type === 'createBuffer') {
+          createBuffer(data.action.coordinates[0], data.action.coordinates[1], data.action.radius);
+        }
+      }
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: 'Desculpe, ocorreu um erro ao contactar o servidor da IA.' }]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   // Base Map Layer nativo do Deck.gl (Raster)
@@ -615,7 +661,8 @@ export default function App() {
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
           <DeckGL
             views={showTerrain ? new GlobeView({ id: 'globe', resolution: 10 }) : new MapView({ id: 'map', repeat: true })}
-            initialViewState={INITIAL_VIEW_STATE}
+            viewState={viewState}
+            onViewStateChange={({viewState}) => setViewState(viewState)}
             controller={true}
             onClick={handleMapClick}
             layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
@@ -717,6 +764,75 @@ export default function App() {
           </div>
         </div>
       )}
+    {/* Botão Flutuante do Chatbot */}
+    <button 
+      onClick={() => setChatOpen(!chatOpen)}
+      className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center transition-transform hover:scale-110 z-[2000]"
+    >
+      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+    </button>
+
+    {/* Interface do Chatbot */}
+    {chatOpen && (
+      <div className="fixed bottom-24 right-6 w-96 max-h-[600px] h-[70vh] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col z-[2000] overflow-hidden">
+        {/* Header */}
+        <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-indigo-600/10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center">
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+            </div>
+            <div>
+              <h3 className="text-slate-100 font-semibold text-sm">IA Espacial</h3>
+              <p className="text-indigo-400 text-xs">SimGeo Agent</p>
+            </div>
+          </div>
+          <button onClick={() => setChatOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+        
+        {/* Messages */}
+        <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4">
+          {chatMessages.map((msg, idx) => (
+            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${msg.role === 'user' ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-slate-800 text-slate-200 rounded-bl-sm border border-slate-700'}`}>
+                {msg.content}
+              </div>
+            </div>
+          ))}
+          {chatLoading && (
+            <div className="flex justify-start">
+              <div className="bg-slate-800 text-slate-400 rounded-2xl rounded-bl-sm px-4 py-3 border border-slate-700 flex gap-2">
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></div>
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {/* Input */}
+        <div className="p-3 border-t border-slate-700/50 bg-slate-900">
+          <div className="flex items-center gap-2 bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2">
+            <input 
+              type="text" 
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSendChatMessage()}
+              placeholder="Ex: Onde estão os hospitais?"
+              className="flex-1 bg-transparent text-sm text-slate-200 outline-none"
+            />
+            <button 
+              onClick={handleSendChatMessage}
+              disabled={chatLoading || !chatInput.trim()}
+              className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </>
   );
 }

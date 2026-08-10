@@ -36,5 +36,6 @@ urlpatterns = [
     path('simulation/gee/groundwater/map/', GEEGroundwaterMapView.as_view(), name='gee-groundwater-map'),
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
+    path('agent/', include('ai_agent.urls')),
     path('', include(router.urls)),
 ]
