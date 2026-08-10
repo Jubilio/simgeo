@@ -175,7 +175,7 @@ export default function App() {
     }
     try {
       const res = await axios.get(`${API_URL}infrastructures/?search=${query}`);
-      const data = res.data.results || res.data;
+      const data = res.data.features || res.data.results || res.data;
       // Filtra pelo nome
       const filtered = (Array.isArray(data) ? data : []).filter(f =>
         f.properties?.name?.toLowerCase().includes(query.toLowerCase())
