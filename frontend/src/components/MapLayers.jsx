@@ -4,7 +4,7 @@ import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 
 const API_BASE = 'http://localhost:8000/api/';
 
-export default function useMapLayers({ showBoundaries, showInfrastructure, setTooltipInfo, gwCustomPoints }) {
+export default function useMapLayers({ showBoundaries, showInfrastructure, setTooltipInfo, gwCustomPoints, bufferData }) {
   const [boundaries, setBoundaries] = useState(null);
   const [infrastructure, setInfrastructure] = useState(null);
 
@@ -132,6 +132,23 @@ export default function useMapLayers({ showBoundaries, showInfrastructure, setTo
             setTooltipInfo(null);
           }
         }
+      })
+    );
+  }
+
+  // Camada de Buffer Interativo (Turf.js)
+  if (bufferData) {
+    layers.push(
+      new GeoJsonLayer({
+        id: 'buffer-layer',
+        data: bufferData,
+        pickable: false,
+        stroked: true,
+        filled: true,
+        lineWidthMinPixels: 2,
+        getFillColor: [251, 191, 36, 40], // Amber translúcido
+        getLineColor: [251, 191, 36, 200],
+        getLineWidth: 2,
       })
     );
   }

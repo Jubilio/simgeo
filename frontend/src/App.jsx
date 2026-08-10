@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import DeckGL from '@deck.gl/react';
-import { _GlobeView as GlobeView } from '@deck.gl/core';
-import { TileLayer } from '@deck.gl/geo-layers';
+import { _GlobeView as GlobeView, MapView } from '@deck.gl/core';
+import { TileLayer, TerrainLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
+import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -46,6 +47,17 @@ export default function App() {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadLayerType, setUploadLayerType] = useState('infrastructure');
   const [uploading, setUploading] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(null);
+  const fileInputRef = useRef(null);
+  
+  // Barra de pesquisa
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  
+  // Buffer Interativo (Turf.js)
+  const [bufferData, setBufferData] = useState(null);
+  const [bufferRadius, setBufferRadius] = useState(5); // km
+  const [showTerrain, setShowTerrain] = useState(false);
   
   const [waterLevel, setWaterLevel] = useState(2.0);
   const [geeError, setGeeError] = useState(null);
@@ -71,7 +83,8 @@ export default function App() {
     showBoundaries,
     showInfrastructure,
     setTooltipInfo,
-    gwCustomPoints
+    gwCustomPoints,
+    bufferData
   });
 
   const geeLayers = useGEELayer({
@@ -121,6 +134,7 @@ export default function App() {
   const handleUpload = async () => {
     if (!uploadFile) return;
     setUploading(true);
+    setUploadSuccess(null);
     
     const formData = new FormData();
     formData.append('file', uploadFile);
@@ -130,14 +144,43 @@ export default function App() {
       const res = await axios.post(`${API_URL}upload/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      alert(res.data.message);
+      setUploadSuccess(res.data.message);
       setUploadFile(null);
-      // Limpar o input type=file seria feito com ref, mas aqui basta state
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setTimeout(() => setUploadSuccess(null), 5000);
     } catch (err) {
-      alert(err.response?.data?.error || "Erro no upload");
+      setUploadSuccess(`❌ ${err.response?.data?.error || 'Erro no upload'}`);
+      setTimeout(() => setUploadSuccess(null), 5000);
     } finally {
       setUploading(false);
     }
+  };
+
+  // Pesquisa de infraestruturas
+  const handleSearch = async (query) => {
+    setSearchQuery(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_URL}infrastructures/?search=${query}`);
+      const data = res.data.results || res.data;
+      // Filtra pelo nome
+      const filtered = (Array.isArray(data) ? data : []).filter(f =>
+        f.properties?.name?.toLowerCase().includes(query.toLowerCase())
+      );
+      setSearchResults(filtered.slice(0, 8));
+    } catch (err) {
+      console.error('Erro na pesquisa:', err);
+    }
+  };
+  
+  // Criar Buffer com Turf.js
+  const createBuffer = (lng, lat, radiusKm) => {
+    const point = turf.point([lng, lat]);
+    const buffered = turf.buffer(point, radiusKm, { units: 'kilometers' });
+    setBufferData(buffered);
   };
 
   // Base Map Layer nativo do Deck.gl (Raster)
@@ -159,6 +202,24 @@ export default function App() {
       });
     }
   });
+
+  // Terrain 3D Layer (Mapzen Terrarium)
+  const terrainLayer = showTerrain ? new TerrainLayer({
+    id: 'terrain-layer',
+    minZoom: 0,
+    maxZoom: 23,
+    strategy: 'no-overlap',
+    elevationDecoder: {
+      rScaler: 256,
+      gScaler: 1,
+      bScaler: 1 / 256,
+      offset: -32768
+    },
+    elevationData: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
+    texture: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+    wireframe: false,
+    color: [255, 255, 255]
+  }) : null;
 
   return (
     <>
@@ -421,25 +482,34 @@ export default function App() {
                   <option value="boundary">Limites (Polígonos)</option>
                 </select>
                 <input 
+                  ref={fileInputRef}
                   type="file" 
                   accept=".zip,.geojson,.json"
                   onChange={e => setUploadFile(e.target.files[0])}
-                  className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 mb-2 cursor-pointer"
+                  className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600/20 file:text-indigo-300 hover:file:bg-indigo-600/30 file:cursor-pointer mb-2 cursor-pointer file:transition-colors"
                 />
                 <button 
                   onClick={handleUpload}
                   disabled={!uploadFile || uploading}
-                  className={`w-full py-1.5 text-xs rounded transition-colors font-medium border flex items-center justify-center gap-2 ${uploadFile ? 'bg-indigo-600/80 hover:bg-indigo-500 text-white border-indigo-500/50 shadow-[0_0_10px_rgba(79,70,229,0.3)]' : 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'}`}
+                  className={`w-full py-2 text-xs rounded-lg transition-all font-medium border flex items-center justify-center gap-2 ${uploadFile ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white border-indigo-400/30 shadow-lg shadow-indigo-500/30' : 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'}`}
                 >
                   {uploading ? (
                     <>
-                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
                       A Processar...
                     </>
                   ) : (
-                    'Fazer Upload'
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                      Fazer Upload
+                    </>
                   )}
                 </button>
+                {uploadSuccess && (
+                  <div className={`mt-2 p-2 rounded text-xs text-center font-medium ${uploadSuccess.startsWith('❌') ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+                    {uploadSuccess}
+                  </div>
+                )}
               </div>
             </div>
             
@@ -485,10 +555,74 @@ export default function App() {
         <div className="absolute top-0 left-0 right-0 h-16 bg-slate-900/60 backdrop-blur-md z-[1000] border-b border-white/5 flex items-center justify-between px-6 pointer-events-none">
           <div className="flex items-center gap-4">
              <div className="px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300 pointer-events-auto shadow-lg">
-                Sofala, Moçambique
+                🌍 SimGeo - Moçambique
              </div>
           </div>
-          <div className="flex items-center gap-4 pointer-events-auto">
+          
+          {/* Barra de Pesquisa */}
+          <div className="relative pointer-events-auto">
+            <div className="flex items-center bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 gap-2 shadow-lg min-w-[320px]">
+              <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              <input 
+                type="text" 
+                placeholder="Pesquisar infraestruturas, locais..."
+                value={searchQuery}
+                onChange={e => handleSearch(e.target.value)}
+                className="bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none w-full"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-slate-500 hover:text-white">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              )}
+            </div>
+            {searchResults.length > 0 && (
+              <div className="absolute top-full mt-1 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-lg shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
+                {searchResults.map((r, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      // Criar buffer em redor do resultado
+                      const coords = r.geometry?.coordinates;
+                      if (coords) {
+                        const [lng, lat] = Array.isArray(coords[0]) ? coords[0] : coords;
+                        createBuffer(lng, lat, bufferRadius);
+                      }
+                      setSearchQuery('');
+                      setSearchResults([]);
+                    }}
+                    className="w-full px-4 py-2.5 text-left hover:bg-slate-800 transition-colors flex items-center gap-3 border-b border-slate-800/50 last:border-0"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></div>
+                    <div>
+                      <div className="text-sm text-slate-200">{r.properties?.name || 'Sem Nome'}</div>
+                      <div className="text-[10px] text-slate-500">{r.properties?.type_display || r.properties?.type}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-3 pointer-events-auto">
+            {/* Botão Terrain 3D */}
+            <button 
+              onClick={() => setShowTerrain(!showTerrain)}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border flex items-center gap-2 ${showTerrain ? 'bg-emerald-600/80 text-white border-emerald-400/30 shadow-lg shadow-emerald-500/20' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              3D
+            </button>
+            {/* Botão Limpar Buffer */}
+            {bufferData && (
+              <button 
+                onClick={() => setBufferData(null)}
+                className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-600/80 text-white border border-amber-400/30 shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all hover:bg-amber-500"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                Limpar Buffer
+              </button>
+            )}
              <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 border border-indigo-400/20">
                + Novo Cenário
              </button>
@@ -498,11 +632,11 @@ export default function App() {
         {/* Map Container */}
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
           <DeckGL
-            views={new GlobeView()}
+            views={showTerrain ? new GlobeView() : new MapView()}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
             onClick={handleMapClick}
-            layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
+            layers={[showTerrain ? terrainLayer : baseMapLayer, ...geeLayers, ...vectorLayers].filter(Boolean)} // Base -> GEE -> Vectors
           >
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (

@@ -1,5 +1,5 @@
 from rest_framework import viewsets
-from .models import AdministrativeBoundary, Infrastructure
+from .models import AdministrativeBoundary, Infrastructure, SpatialDataset
 from .serializers import AdministrativeBoundarySerializer, InfrastructureSerializer
 
 class AdministrativeBoundaryViewSet(viewsets.ReadOnlyModelViewSet):
@@ -63,11 +63,16 @@ class FileUploadView(APIView):
             
         ext = os.path.splitext(file_obj.name)[1].lower()
         
+        # Guardar ficheiro físico na base de dados
+        dataset = SpatialDataset.objects.create(
+            name=file_obj.name,
+            file=file_obj,
+            layer_type=layer_type
+        )
+        
         with tempfile.TemporaryDirectory() as tmpdir:
-            file_path = os.path.join(tmpdir, file_obj.name)
-            with open(file_path, 'wb+') as f:
-                for chunk in file_obj.chunks():
-                    f.write(chunk)
+            # Usar o ficheiro gravado
+            file_path = dataset.file.path
             
             # Se for ZIP (Shapefile)
             if ext == '.zip':

@@ -93,3 +93,17 @@ class SocioeconomicData(models.Model):
 
     def __str__(self):
         return f"{self.boundary.name} - {self.year}"
+
+class SpatialDataset(models.Model):
+    """Armazenamento físico dos datasets carregados pelo utilizador."""
+    name = models.CharField(max_length=255, verbose_name=_('Nome Original do Ficheiro'))
+    file = models.FileField(upload_to='spatial_datasets/', verbose_name=_('Ficheiro'))
+    layer_type = models.CharField(max_length=50, default='infrastructure', verbose_name=_('Tipo de Camada'))
+    uploaded_at = models.DateTimeField(auto_now_add=True, verbose_name=_('Data de Upload'))
+
+    class Meta:
+        verbose_name = _('Dataset Espacial')
+        verbose_name_plural = _('Datasets Espaciais')
+
+    def __str__(self):
+        return f"{self.name} ({self.layer_type})"
