@@ -115,10 +115,15 @@ class GEEGroundwaterMapView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+from rest_framework.permissions import AllowAny
+
 class GEEGroundwaterTimeseriesView(APIView):
     """
     Endpoint POST para extrair a série temporal agregada de Águas Subterrâneas.
     """
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    
     def post(self, request):
         try:
             start_date = request.data.get('start_date', '2023-01-01')

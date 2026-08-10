@@ -40,6 +40,12 @@ export default function App() {
   const [gwModalOpen, setGwModalOpen] = useState(false);
   const [gwLoading, setGwLoading] = useState(false);
   const [gwData, setGwData] = useState([]);
+  const [gwCustomPoints, setGwCustomPoints] = useState([]);
+  
+  // Estado para Upload
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadLayerType, setUploadLayerType] = useState('infrastructure');
+  const [uploading, setUploading] = useState(false);
   
   const [waterLevel, setWaterLevel] = useState(2.0);
   const [geeError, setGeeError] = useState(null);
@@ -64,7 +70,8 @@ export default function App() {
   const vectorLayers = useMapLayers({
     showBoundaries,
     showInfrastructure,
-    setTooltipInfo
+    setTooltipInfo,
+    gwCustomPoints
   });
 
   const geeLayers = useGEELayer({
@@ -86,16 +93,50 @@ export default function App() {
       const response = await axios.post(`${API_URL}simulation/gee/groundwater/timeseries/`, {
         start_date: "2018-01-01",
         end_date: "2023-12-31",
-        points: [
-          { name: "Ponto 1", lng: 37.8799, lat: -11.9687 },
-          { name: "Ponto 2", lng: 38.1765, lat: -12.6771 }
-        ]
+        points: gwCustomPoints.length > 0 ? gwCustomPoints : []
       });
       setGwData(response.data.timeseries);
     } catch (error) {
       console.error("Erro ao buscar série temporal:", error);
     } finally {
       setGwLoading(false);
+    }
+  };
+
+  // Tratar cliques no mapa para seleção de pontos
+  const handleMapClick = (info) => {
+    if (showGroundwater && info.coordinate) {
+      const [lng, lat] = info.coordinate;
+      setGwCustomPoints(prev => {
+        if (prev.length >= 5) return prev; // Max 5 pontos
+        return [...prev, {
+          name: `Ponto ${prev.length + 1}`,
+          lng: parseFloat(lng.toFixed(4)),
+          lat: parseFloat(lat.toFixed(4))
+        }];
+      });
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!uploadFile) return;
+    setUploading(true);
+    
+    const formData = new FormData();
+    formData.append('file', uploadFile);
+    formData.append('layer_type', uploadLayerType);
+    
+    try {
+      const res = await axios.post(`${API_URL}upload/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      alert(res.data.message);
+      setUploadFile(null);
+      // Limpar o input type=file seria feito com ref, mas aqui basta state
+    } catch (err) {
+      alert(err.response?.data?.error || "Erro no upload");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -310,12 +351,36 @@ export default function App() {
                   <span>Úmido</span>
                 </div>
 
+                <div className="bg-slate-800/50 p-2 rounded border border-slate-700/50 mb-3">
+                  <div className="text-[10px] text-slate-400 mb-1 flex justify-between items-center">
+                    <span>Pontos de Monitorização ({gwCustomPoints.length}/5)</span>
+                    {gwCustomPoints.length > 0 && (
+                      <button onClick={() => setGwCustomPoints([])} className="text-red-400 hover:text-red-300">Limpar</button>
+                    )}
+                  </div>
+                  {gwCustomPoints.length === 0 ? (
+                    <div className="text-[10px] text-slate-500 italic py-1">
+                      Clique no mapa para adicionar pontos de análise (Máx 5).
+                    </div>
+                  ) : (
+                    <ul className="space-y-1">
+                      {gwCustomPoints.map((pt, idx) => (
+                        <li key={idx} className="text-[10px] text-slate-300 flex justify-between bg-slate-800/80 p-1.5 rounded">
+                          <span className="font-medium text-blue-300">{pt.name}</span>
+                          <span className="text-slate-500">[{pt.lng}, {pt.lat}]</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
                 <button 
                   onClick={() => {
                     setGwModalOpen(true);
-                    if(gwData.length === 0) fetchGwTimeSeries();
+                    fetchGwTimeSeries(); // Recalcula sempre para refletir novos pontos
                   }}
-                  className="w-full py-1.5 bg-blue-600/80 hover:bg-blue-500 text-white text-xs rounded transition-colors font-medium border border-blue-500/50"
+                  disabled={gwCustomPoints.length === 0}
+                  className={`w-full py-1.5 text-xs rounded transition-colors font-medium border ${gwCustomPoints.length > 0 ? 'bg-blue-600/80 hover:bg-blue-500 text-white border-blue-500/50' : 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'}`}
                 >
                   Abrir Análise Temporal
                 </button>
@@ -342,6 +407,42 @@ export default function App() {
                 </p>
               </div>
             )}
+            
+            {/* Secção de Administração */}
+            <div className="pt-4 mt-2 border-t border-slate-800/50 mb-4">
+              <h3 className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                Administração
+              </h3>
+              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+                <label className="text-[10px] text-slate-400 block mb-1">Carregar Dados Espaciais (.zip/.geojson)</label>
+                <select value={uploadLayerType} onChange={e => setUploadLayerType(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded p-1.5 mb-2 outline-none">
+                  <option value="infrastructure">Infraestruturas (Pontos)</option>
+                  <option value="boundary">Limites (Polígonos)</option>
+                </select>
+                <input 
+                  type="file" 
+                  accept=".zip,.geojson,.json"
+                  onChange={e => setUploadFile(e.target.files[0])}
+                  className="w-full text-xs text-slate-400 file:mr-2 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-800 file:text-slate-300 hover:file:bg-slate-700 mb-2 cursor-pointer"
+                />
+                <button 
+                  onClick={handleUpload}
+                  disabled={!uploadFile || uploading}
+                  className={`w-full py-1.5 text-xs rounded transition-colors font-medium border flex items-center justify-center gap-2 ${uploadFile ? 'bg-indigo-600/80 hover:bg-indigo-500 text-white border-indigo-500/50 shadow-[0_0_10px_rgba(79,70,229,0.3)]' : 'bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed'}`}
+                >
+                  {uploading ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      A Processar...
+                    </>
+                  ) : (
+                    'Fazer Upload'
+                  )}
+                </button>
+              </div>
+            </div>
+            
           </div>
         </nav>
 
@@ -400,6 +501,7 @@ export default function App() {
             views={new GlobeView()}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
+            onClick={handleMapClick}
             layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
           >
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
@@ -484,8 +586,12 @@ export default function App() {
                         />
                         <Legend wrapperStyle={{ paddingTop: '20px' }} />
                         <Line type="monotone" dataKey="Moçambique (Média)" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6 }} />
-                        <Line type="monotone" dataKey="Ponto 1" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                        <Line type="monotone" dataKey="Ponto 2" stroke="#10b981" strokeWidth={2} dot={false} />
+                        {gwCustomPoints.map((pt, idx) => {
+                          const colors = ["#f59e0b", "#10b981", "#ef4444", "#a855f7", "#ec4899"];
+                          return (
+                            <Line key={pt.name} type="monotone" dataKey={pt.name} stroke={colors[idx % colors.length]} strokeWidth={2} dot={false} />
+                          );
+                        })}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>

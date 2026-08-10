@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { GeoJsonLayer } from '@deck.gl/layers';
+import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 
 const API_BASE = 'http://localhost:8000/api/';
 
-export default function useMapLayers({ showBoundaries, showInfrastructure, setTooltipInfo }) {
+export default function useMapLayers({ showBoundaries, showInfrastructure, setTooltipInfo, gwCustomPoints }) {
   const [boundaries, setBoundaries] = useState(null);
   const [infrastructure, setInfrastructure] = useState(null);
 
@@ -93,6 +93,40 @@ export default function useMapLayers({ showBoundaries, showInfrastructure, setTo
               title: info.object.properties.name,
               subtitle: `Tipo: ${info.object.properties.type_display}`,
               detail: `Capacidade: ${info.object.properties.capacity || 'N/A'}`
+            });
+          } else {
+            setTooltipInfo(null);
+          }
+        }
+      })
+    );
+  }
+
+  // Camada para os Pontos Interativos GLDAS
+  if (gwCustomPoints && gwCustomPoints.length > 0) {
+    layers.push(
+      new ScatterplotLayer({
+        id: 'gw-custom-points',
+        data: gwCustomPoints,
+        pickable: true,
+        opacity: 0.8,
+        stroked: true,
+        filled: true,
+        radiusScale: 1000,
+        radiusMinPixels: 6,
+        radiusMaxPixels: 20,
+        lineWidthMinPixels: 2,
+        getPosition: d => [d.lng, d.lat],
+        getFillColor: [255, 204, 0, 255], // Amarelo
+        getLineColor: [255, 255, 255, 255],
+        onHover: info => {
+          if (info.object) {
+            setTooltipInfo({
+              x: info.x,
+              y: info.y,
+              title: info.object.name,
+              subtitle: 'Ponto de Monitorização GLDAS',
+              detail: `[${info.object.lng}, ${info.object.lat}]`
             });
           } else {
             setTooltipInfo(null);

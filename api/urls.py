@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from maps.views import AdministrativeBoundaryViewSet, InfrastructureViewSet
+from maps.views import AdministrativeBoundaryViewSet, InfrastructureViewSet, FileUploadView
 from simulation.views import GEEFloodSimulationView, GEELULCView, GEELithologyView, GEEGroundwaterMapView, GEEGroundwaterTimeseriesView
 
 router = DefaultRouter()
@@ -35,5 +35,6 @@ urlpatterns = [
     path('simulation/gee/lithology/', GEELithologyView.as_view(), name='gee-lithology'),
     path('simulation/gee/groundwater/map/', GEEGroundwaterMapView.as_view(), name='gee-groundwater-map'),
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
+    path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('', include(router.urls)),
 ]
