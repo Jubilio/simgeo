@@ -10,12 +10,14 @@ export default function useGEELayer({
   activeLULC, 
   activeLithology, lithologyType, 
   activeGroundwater, gwYear, gwMonth,
+  activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
   setErrorMessage 
 }) {
   const [floodTileUrl, setFloodTileUrl] = useState(null);
   const [lulcTileUrl, setLulcTileUrl] = useState(null);
   const [lithologyTileUrl, setLithologyTileUrl] = useState(null);
   const [groundwaterTileUrl, setGroundwaterTileUrl] = useState(null);
+  const [malariaTileUrl, setMalariaTileUrl] = useState(null);
 
   // Hook para Inundação
   useEffect(() => {
@@ -97,7 +99,52 @@ export default function useGEELayer({
     }
   }, [activeGroundwater, gwYear, gwMonth, setErrorMessage]);
 
+  // Aptidão Ambiental para a Malária em Moçambique
+  useEffect(() => {
+    if (activeMalaria) {
+      setErrorMessage(null);
+      const params = new URLSearchParams({
+        start_year: malariaStartYear,
+        end_year: malariaEndYear,
+        month: malariaMonth
+      });
+      axios.get(`${API_BASE}simulation/gee/malaria-suitability/?${params}`)
+        .then(res => {
+          const tileUrl = res.data?.gee_layer?.tile_url;
+          if (tileUrl) setMalariaTileUrl(tileUrl);
+        })
+        .catch(err => {
+          console.warn("Aviso GEE (Malária):", err);
+          const detail = err.response?.data?.detail || err.response?.data?.error || "Erro ao calcular a aptidão ambiental para a malária.";
+          setErrorMessage(detail);
+        });
+    } else {
+      setMalariaTileUrl(null);
+    }
+  }, [activeMalaria, malariaStartYear, malariaEndYear, malariaMonth, setErrorMessage]);
+
   const layers = [];
+
+  if (activeMalaria && malariaTileUrl) {
+    layers.push(
+      new TileLayer({
+        id: `gee-malaria-suitability-${malariaStartYear}-${malariaEndYear}-${malariaMonth}`,
+        data: malariaTileUrl,
+        minZoom: 0,
+        maxZoom: 19,
+        tileSize: 256,
+        opacity: 0.76,
+        renderSubLayers: props => {
+          const { bbox: { west, south, east, north } } = props.tile;
+          return new BitmapLayer(props, {
+            data: null,
+            image: props.data,
+            bounds: [west, south, east, north]
+          });
+        }
+      })
+    );
+  }
 
   // 1. Renderizar Lithology (ASTER) primeiro
   if (activeLithology && lithologyTileUrl) {

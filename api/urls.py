@@ -3,7 +3,14 @@ from rest_framework.routers import DefaultRouter
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from maps.views import AdministrativeBoundaryViewSet, InfrastructureViewSet, FileUploadView
-from simulation.views import GEEFloodSimulationView, GEELULCView, GEELithologyView, GEEGroundwaterMapView, GEEGroundwaterTimeseriesView
+from simulation.views import (
+    GEEFloodSimulationView,
+    GEEGroundwaterMapView,
+    GEEGroundwaterTimeseriesView,
+    GEELithologyView,
+    GEELULCView,
+    GEEMalariaSuitabilityView,
+)
 
 router = DefaultRouter()
 router.register(r'boundaries', AdministrativeBoundaryViewSet, basename='boundary')
@@ -25,6 +32,7 @@ class APIRootView(APIView):
                 'simulation_gee_lithology': request.build_absolute_uri('simulation/gee/lithology/'),
                 'simulation_gee_groundwater_map': request.build_absolute_uri('simulation/gee/groundwater/map/'),
                 'simulation_gee_groundwater_ts': request.build_absolute_uri('simulation/gee/groundwater/timeseries/'),
+                'simulation_gee_malaria_suitability': request.build_absolute_uri('simulation/gee/malaria-suitability/'),
             }
         })
 
@@ -35,6 +43,7 @@ urlpatterns = [
     path('simulation/gee/lithology/', GEELithologyView.as_view(), name='gee-lithology'),
     path('simulation/gee/groundwater/map/', GEEGroundwaterMapView.as_view(), name='gee-groundwater-map'),
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
+    path('simulation/gee/malaria-suitability/', GEEMalariaSuitabilityView.as_view(), name='gee-malaria-suitability'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('agent/', include('ai_agent.urls')),
     path('', include(router.urls)),

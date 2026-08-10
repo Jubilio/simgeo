@@ -23,6 +23,7 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 3. **Motor de Simulação de Ciclones (Cyclone Engine)**: Buffer de trajetórias, wind fields e impacto espacial.
 4. **Módulo Analítico e de Vulnerabilidade**: Integração de índices de pobreza e segurança alimentar (IPC).
 5. **Dashboard Multi-Risco**: Cálculo em tempo real: `Risco = Perigo (Hazard) × Exposição × Vulnerabilidade`.
+6. **Aptidão Ambiental para a Malária (Moçambique)**: Índice anual ou mensal no Google Earth Engine, combinando temperatura, precipitação, água superficial, vegetação e elevação. O produto representa aptidão ambiental e não carga da doença. Consulte a [metodologia e limitações](docs/MALARIA_SUITABILITY.md).
 
 ---
 

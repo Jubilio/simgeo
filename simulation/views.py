@@ -1,7 +1,21 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .services.gee_service import get_flood_simulation_tiles, get_lulc_tiles, get_lithology_tiles, get_groundwater_tiles, get_groundwater_timeseries
+from rest_framework.permissions import AllowAny
+
+from .services.gee_service import (
+    get_flood_simulation_tiles,
+    get_groundwater_tiles,
+    get_groundwater_timeseries,
+    get_lithology_tiles,
+    get_lulc_tiles,
+)
+from .services.malaria_service import (
+    DEFAULT_END_YEAR,
+    DEFAULT_MONTH,
+    DEFAULT_START_YEAR,
+    get_malaria_suitability_tiles,
+)
 
 class GEEFloodSimulationView(APIView):
     """
@@ -115,8 +129,6 @@ class GEEGroundwaterMapView(APIView):
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-from rest_framework.permissions import AllowAny
-
 class GEEGroundwaterTimeseriesView(APIView):
     """
     Endpoint POST para extrair a série temporal agregada de Águas Subterrâneas.
@@ -138,3 +150,38 @@ class GEEGroundwaterTimeseriesView(APIView):
             })
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GEEMalariaSuitabilityView(APIView):
+    """Serve the environmental malaria suitability layer for Mozambique."""
+
+    def get(self, request):
+        try:
+            start_year = request.query_params.get("start_year", DEFAULT_START_YEAR)
+            end_year = request.query_params.get("end_year", DEFAULT_END_YEAR)
+            month = request.query_params.get("month", DEFAULT_MONTH)
+            gee_data = get_malaria_suitability_tiles(
+                start_year=start_year,
+                end_year=end_year,
+                month=month,
+            )
+            return Response({
+                "status": "success",
+                "gee_layer": gee_data,
+            })
+        except (TypeError, ValueError) as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            error_message = str(exc)
+            if "inicializado" in error_message.lower() or "autentic" in error_message.lower():
+                return Response(
+                    {
+                        "error": "Google Earth Engine não autenticado no servidor.",
+                        "detail": error_message,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response(
+                {"error": error_message},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

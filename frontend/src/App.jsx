@@ -11,6 +11,16 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsToolti
 
 const API_URL = 'http://localhost:8000/api/';
 
+const MALARIA_MONTHS = [
+  'Anual', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+const MALARIA_MAX_YEAR = new Date().getFullYear() - 1;
+const MALARIA_YEARS = Array.from(
+  { length: MALARIA_MAX_YEAR - 2000 },
+  (_, index) => MALARIA_MAX_YEAR - index
+);
+
 const INITIAL_VIEW_STATE = {
   longitude: 34.84,
   latitude: -19.83,
@@ -52,6 +62,12 @@ export default function App() {
   const [gwLoading, setGwLoading] = useState(false);
   const [gwData, setGwData] = useState([]);
   const [gwCustomPoints, setGwCustomPoints] = useState([]);
+
+  // Aptidão Ambiental para a Malária
+  const [showMalaria, setShowMalaria] = useState(false);
+  const [malariaStartYear, setMalariaStartYear] = useState(2020);
+  const [malariaEndYear, setMalariaEndYear] = useState(2025);
+  const [malariaMonth, setMalariaMonth] = useState(0);
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
@@ -106,6 +122,10 @@ export default function App() {
     activeGroundwater: showGroundwater,
     gwYear,
     gwMonth,
+    activeMalaria: showMalaria,
+    malariaStartYear,
+    malariaEndYear,
+    malariaMonth,
     setErrorMessage: setGeeError
   });
 
@@ -333,6 +353,83 @@ export default function App() {
                 <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
                   Utiliza o DEM SRTM via Google Earth Engine para simular a elevação do nível do mar em tempo real.
                 </p>
+              </div>
+            )}
+
+            {/* Aptidão Ambiental para a Malária */}
+            <button
+              onClick={() => setShowMalaria(!showMalaria)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showMalaria ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4M7 7l10 10m0-10L7 17"></path></svg>
+                Aptidão para Malária
+              </div>
+              <div className={`w-8 h-4 rounded-full transition-colors relative ${showMalaria ? 'bg-rose-500' : 'bg-slate-700'}`}>
+                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showMalaria ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showMalaria ? 'translateX(14px)' : 'translateX(0)' }}></div>
+              </div>
+            </button>
+
+            {showMalaria && (
+              <div className="p-3 bg-slate-900/50 rounded-lg border border-rose-500/20 mt-2 mb-4 transition-all">
+                <div className="flex gap-2 mb-3">
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[10px] text-slate-400 block mb-1">De</label>
+                    <select
+                      value={malariaStartYear}
+                      onChange={e => {
+                        const year = Number(e.target.value);
+                        setMalariaStartYear(year);
+                        if (year > malariaEndYear) setMalariaEndYear(year);
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded p-1.5 outline-none"
+                    >
+                      {MALARIA_YEARS.map(year => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="text-[10px] text-slate-400 block mb-1">Até</label>
+                    <select
+                      value={malariaEndYear}
+                      onChange={e => {
+                        const year = Number(e.target.value);
+                        setMalariaEndYear(year);
+                        if (year < malariaStartYear) setMalariaStartYear(year);
+                      }}
+                      className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded p-1.5 outline-none"
+                    >
+                      {MALARIA_YEARS.map(year => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <label className="text-[10px] text-slate-400 block mb-1">Período</label>
+                <select
+                  value={malariaMonth}
+                  onChange={e => setMalariaMonth(Number(e.target.value))}
+                  className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded p-1.5 mb-3 outline-none"
+                >
+                  {MALARIA_MONTHS.map((name, month) => <option key={name} value={month}>{name}</option>)}
+                </select>
+
+                <div className="text-xs text-slate-300 font-medium mb-2">Índice ambiental (0–1)</div>
+                <div className="grid grid-cols-5 gap-1 mb-1">
+                  {['#1a9850', '#91cf60', '#fee08b', '#fc8d59', '#d73027'].map(color => (
+                    <div key={color} className="h-2 rounded-sm" style={{ backgroundColor: color }}></div>
+                  ))}
+                </div>
+                <div className="flex justify-between text-[9px] text-slate-500 mb-3">
+                  <span>Muito baixa</span>
+                  <span>Moderada</span>
+                  <span>Muito alta</span>
+                </div>
+
+                <p className="text-[10px] text-slate-400 leading-relaxed mb-2">
+                  30% temperatura · 25% chuva · 20% água · 15% vegetação · 10% elevação
+                </p>
+                <div className="rounded border border-amber-500/30 bg-amber-500/10 p-2 text-[10px] leading-relaxed text-amber-200">
+                  Aptidão ambiental, não casos de malária. A interpretação deve ser combinada com dados epidemiológicos, entomológicos e de acesso aos serviços.
+                </div>
               </div>
             )}
 
@@ -680,7 +777,7 @@ export default function App() {
             )}
           </DeckGL>
 
-          {simGEEFlood && geeError && (
+          {(simGEEFlood || showLULC || showLithology || showGroundwater || showMalaria) && geeError && (
             <div className="absolute bottom-6 left-6 z-[1000]">
               <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-amber-400">
