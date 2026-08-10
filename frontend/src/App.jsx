@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView, MapView } from '@deck.gl/core';
-import { TileLayer, TerrainLayer } from '@deck.gl/geo-layers';
+import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
 import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
@@ -202,24 +202,6 @@ export default function App() {
       });
     }
   });
-
-  // Terrain 3D Layer (Mapzen Terrarium)
-  const terrainLayer = showTerrain ? new TerrainLayer({
-    id: 'terrain-layer',
-    minZoom: 0,
-    maxZoom: 23,
-    strategy: 'no-overlap',
-    elevationDecoder: {
-      rScaler: 256,
-      gScaler: 1,
-      bScaler: 1 / 256,
-      offset: -32768
-    },
-    elevationData: 'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png',
-    texture: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
-    wireframe: false,
-    color: [255, 255, 255]
-  }) : null;
 
   return (
     <>
@@ -632,11 +614,11 @@ export default function App() {
         {/* Map Container */}
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
           <DeckGL
-            views={showTerrain ? new GlobeView() : new MapView()}
+            views={showTerrain ? new GlobeView({ id: 'globe', resolution: 10 }) : new MapView({ id: 'map', repeat: true })}
             initialViewState={INITIAL_VIEW_STATE}
             controller={true}
             onClick={handleMapClick}
-            layers={[showTerrain ? terrainLayer : baseMapLayer, ...geeLayers, ...vectorLayers].filter(Boolean)} // Base -> GEE -> Vectors
+            layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
           >
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (
