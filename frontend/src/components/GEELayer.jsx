@@ -44,6 +44,7 @@ export default function useGEELayer({
   activeLithology, lithologyType, 
   activeGroundwater, gwYear, gwMonth,
   activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
+  activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType,
   setErrorMessage 
 }) {
   const [floodTileUrl, setFloodTileUrl] = useState(null);
@@ -51,6 +52,7 @@ export default function useGEELayer({
   const [lithologyTileUrl, setLithologyTileUrl] = useState(null);
   const [groundwaterTileUrl, setGroundwaterTileUrl] = useState(null);
   const [malariaTileUrl, setMalariaTileUrl] = useState(null);
+  const [cycloneTileUrl, setCycloneTileUrl] = useState(null);
 
   const abortRefs = useRef({});
 
@@ -112,20 +114,44 @@ export default function useGEELayer({
 
   useEffect(() => {
     if (activeMalaria) {
-      setErrorMessage(null);
-      const params = new URLSearchParams({ start_year: malariaStartYear, end_year: malariaEndYear, month: malariaMonth });
+      const params = new URLSearchParams({
+        start_year: malariaStartYear,
+        end_year: malariaEndYear,
+        month: malariaMonth
+      });
       fetchGEE('malaria', `${API_BASE}simulation/gee/malaria-suitability/?${params}`, setMalariaTileUrl);
     } else {
+      if (abortRefs.current.malaria) abortRefs.current.malaria.abort();
       setMalariaTileUrl(null);
     }
-  }, [activeMalaria, malariaStartYear, malariaEndYear, malariaMonth]);
+
+    if (activeCyclone) {
+      const params = new URLSearchParams({
+        start_date: cycloneStart,
+        end_date: cycloneEnd,
+        type: cycloneLayerType
+      });
+      fetchGEE('cyclone', `${API_BASE}simulation/gee/cyclone/?${params}`, setCycloneTileUrl);
+    } else {
+      if (abortRefs.current.cyclone) abortRefs.current.cyclone.abort();
+      setCycloneTileUrl(null);
+    }
+  }, [
+    activeFlood, waterLevel,
+    activeLULC,
+    activeLithology, lithologyType,
+    activeGroundwater, gwYear, gwMonth,
+    activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
+    activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType
+  ]);
 
   const layers = [
-    makeGEETileLayer(`gee-malaria-${malariaStartYear}-${malariaEndYear}-${malariaMonth}`, activeMalaria ? malariaTileUrl : null, 0.76),
-    makeGEETileLayer(`gee-lithology-${lithologyType}`, activeLithology ? lithologyTileUrl : null, 0.7),
-    makeGEETileLayer(`gee-groundwater-${gwYear}-${gwMonth}`, activeGroundwater ? groundwaterTileUrl : null, 0.7),
-    makeGEETileLayer('gee-lulc', activeLULC ? lulcTileUrl : null, 0.5),
-    makeGEETileLayer('gee-flood', activeFlood ? floodTileUrl : null, 0.8),
+    makeGEETileLayer('gee-flood-layer', activeFlood ? floodTileUrl : null, 0.8),
+    makeGEETileLayer('gee-lulc-layer', activeLULC ? lulcTileUrl : null, 0.85),
+    makeGEETileLayer('gee-lithology-layer', activeLithology ? lithologyTileUrl : null, 0.7),
+    makeGEETileLayer('gee-groundwater-layer', activeGroundwater ? groundwaterTileUrl : null, 0.65),
+    makeGEETileLayer('gee-malaria-layer', activeMalaria ? malariaTileUrl : null, 0.8),
+    makeGEETileLayer('gee-cyclone-layer', activeCyclone ? cycloneTileUrl : null, 0.8),
   ].filter(Boolean);
 
   return layers;

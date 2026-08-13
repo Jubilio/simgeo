@@ -17,6 +17,7 @@ from .services.malaria_service import (
     get_malaria_suitability_tiles,
 )
 from .services.gaul_service import get_gaul_admin_tiles
+from .services.cyclone_service import get_cyclone_tiles
 
 class GEEFloodSimulationView(APIView):
     """
@@ -223,3 +224,18 @@ class GEEAdminBoundariesView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class GEECycloneView(APIView):
+    def get(self, request):
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        layer_type = request.query_params.get('type', 'rain')
+        
+        if not start_date or not end_date:
+            return Response({"error": "start_date e end_date são obrigatórios."}, status=400)
+            
+        try:
+            layer_data = get_cyclone_tiles(start_date, end_date, layer_type)
+            return Response({"status": "success", "gee_layer": layer_data})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

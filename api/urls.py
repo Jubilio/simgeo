@@ -11,6 +11,7 @@ from simulation.views import (
     GEELULCView,
     GEEMalariaSuitabilityView,
     GEEAdminBoundariesView,
+    GEECycloneView,
 )
 
 router = DefaultRouter()
@@ -47,6 +48,7 @@ urlpatterns = [
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
     path('simulation/gee/malaria-suitability/', GEEMalariaSuitabilityView.as_view(), name='gee-malaria-suitability'),
     path('simulation/gee/admin-boundaries/', GEEAdminBoundariesView.as_view(), name='gee-admin-boundaries'),
+    path('simulation/gee/cyclone/', GEECycloneView.as_view(), name='gee-cyclone'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('agent/', include('ai_agent.urls')),
     path('', include(router.urls)),

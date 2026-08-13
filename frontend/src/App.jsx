@@ -8,6 +8,7 @@ import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
 import { useAdminBoundaryLayers, AdminBoundaryPanel } from './components/AdminBoundaryPanel';
+import CyclonePanel from './components/CyclonePanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'http://localhost:8000/api/';
@@ -69,6 +70,13 @@ export default function App() {
   const [malariaStartYear, setMalariaStartYear] = useState(2020);
   const [malariaEndYear, setMalariaEndYear] = useState(2025);
   const [malariaMonth, setMalariaMonth] = useState(0);
+
+  // Simulação de Ciclones
+  const [showCyclonePanel, setShowCyclonePanel] = useState(false);
+  const [activeCyclone, setActiveCyclone] = useState(false);
+  const [cycloneStart, setCycloneStart] = useState('2019-03-14'); // Idai defaults
+  const [cycloneEnd, setCycloneEnd] = useState('2019-03-16');
+  const [cycloneLayerType, setCycloneLayerType] = useState('rain');
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
@@ -131,6 +139,10 @@ export default function App() {
     malariaStartYear,
     malariaEndYear,
     malariaMonth,
+    activeCyclone,
+    cycloneStart,
+    cycloneEnd,
+    cycloneLayerType,
     setErrorMessage: setGeeError
   });
 
@@ -738,7 +750,10 @@ export default function App() {
                 Limpar Buffer
               </button>
             )}
-             <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 border border-indigo-400/20">
+             <button 
+               onClick={() => setShowCyclonePanel(true)}
+               className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 border border-indigo-400/20"
+             >
                + Novo Cenário
              </button>
           </div>
@@ -783,6 +798,21 @@ export default function App() {
       
     </div>
       
+      {/* Painel de Ciclones */}
+      {showCyclonePanel && (
+        <CyclonePanel
+          onClose={() => setShowCyclonePanel(false)}
+          activeCyclone={activeCyclone}
+          setActiveCyclone={setActiveCyclone}
+          cycloneStart={cycloneStart}
+          setCycloneStart={setCycloneStart}
+          cycloneEnd={cycloneEnd}
+          setCycloneEnd={setCycloneEnd}
+          cycloneLayerType={cycloneLayerType}
+          setCycloneLayerType={setCycloneLayerType}
+        />
+      )}
+
       {/* Modal Recharts (GLDAS) */}
       {gwModalOpen && (
         <div className="absolute inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6">
