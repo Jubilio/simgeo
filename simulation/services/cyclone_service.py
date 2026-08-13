@@ -62,14 +62,18 @@ def get_cyclone_tiles(start_date, end_date, layer_type='rain'):
             map_id_dict = img_to_vis.getMapId(vis_params)
             
         elif layer_type == 'wind':
-            # ECMWF ERA5 Daily Aggregates - Maximum 10m wind gust
-            # Medido em m/s
+            # ECMWF ERA5 Daily Aggregates - Não tem gust, vamos calcular velocidade média
             dataset = ee.ImageCollection('ECMWF/ERA5/DAILY') \
-                .filterDate(start, end) \
-                .select('maximum_10m_wind_gust')
+                .filterDate(start, end)
             
+            def calc_wind_speed(img):
+                u = img.select('u_component_of_wind_10m')
+                v = img.select('v_component_of_wind_10m')
+                ws = u.pow(2).add(v.pow(2)).sqrt().rename('wind_speed')
+                return img.addBands(ws)
+                
             # Máximo absoluto durante o período
-            max_wind = dataset.max()
+            max_wind = dataset.map(calc_wind_speed).select('wind_speed').max()
             
             # Converter de m/s para km/h (multiplicar por 3.6)
             wind_kmh = max_wind.multiply(3.6)

@@ -92,7 +92,7 @@ export default function App() {
   // Buffer Interativo (Turf.js)
   const [bufferData, setBufferData] = useState(null);
   const [bufferRadius, setBufferRadius] = useState(5); // km
-  const [showTerrain, setShowTerrain] = useState(false);
+  const [showTerrain, setShowTerrain] = useState(true);
   
   const [waterLevel, setWaterLevel] = useState(2.0);
   const [geeError, setGeeError] = useState(null);
