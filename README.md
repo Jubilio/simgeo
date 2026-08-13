@@ -27,6 +27,29 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 
 ---
 
+## ✨ Novas Funcionalidades
+
+### 🤖 Assistente IA (AI Chatbot)
+Integração de um assistente de inteligência artificial que permite aos utilizadores fazer perguntas naturais sobre os dados geográficos e riscos de desastres. O chatbot:
+- **Consultas em Linguagem Natural**: Faça perguntas como *"Quais são os hospitais em Sofala que estão na zona de risco de inundação?"*
+- **Integração com Dados Espaciais**: Liga-se diretamente à base de dados PostGIS para acesso a informações sobre infraestruturas, limites administrativos e camadas de perigo.
+- **Resposta Contextualizada**: Fornece análises e recomendações baseadas em cenários de risco multi-hazard.
+- **Interface Conversacional**: Modal/sidebar no frontend React para interação fluida.
+
+Para mais detalhes, consulte [simgeo-chatbot skill](.github/skills/simgeo-chatbot/SKILL.md).
+
+### 📁 Processamento de Uploads Espaciais
+Novo sistema robusto para importação de dados geográficos personalizados com suporte GDAL:
+- **Formatos Suportados**: Shapefiles (`.zip`), GeoJSON (`.geojson`)
+- **Processamento Seguro**: Validação e extração segura de ficheiros compactados
+- **Integração PostGIS**: Conversão automática de geometrias para a base de dados spatial
+- **Mapeamento de Camadas**: Suporte para diferentes tipos de camadas (infraestrutura, limites administrativos)
+- **Gestão de Ficheiros**: Retenção a longo prazo para auditoria e download
+
+Para mais detalhes, consulte [spatial-uploads skill](.github/skills/spatial-uploads/SKILL.md).
+
+---
+
 ## 🤝 Como Contribuir
 
 Se acaba de se juntar ao projeto, seja bem-vindo! 
