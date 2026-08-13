@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 const CYCLONES = [
   { id: 'idai', name: 'Ciclone Idai (2019)', start: '2019-03-14', end: '2019-03-16' },
@@ -14,7 +14,13 @@ export default function CyclonePanel({
   cycloneEnd, setCycloneEnd,
   cycloneLayerType, setCycloneLayerType
 }) {
-  const [selectedCyclone, setSelectedCyclone] = useState('idai');
+  const [selectedCyclone, setSelectedCyclone] = useState(() => (
+    CYCLONES.find(cyclone =>
+      cyclone.id !== 'custom' &&
+      cyclone.start === cycloneStart &&
+      cyclone.end === cycloneEnd
+    )?.id || 'custom'
+  ));
 
   const handleSelect = (id) => {
     setSelectedCyclone(id);
@@ -32,7 +38,7 @@ export default function CyclonePanel({
           <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A4 4 0 002 12.271m12.752-.103l-3.197 2.132a4 4 0 01-9.555-3.236M21.996 12.271a4 4 0 01-7.244 3.236M21.996 12.271a4 4 0 00-7.244-3.236m7.244 3.236c-.021.09-.044.18-.069.271M14.752 9.036c.021-.09.044-.18.069-.271"></path></svg>
           Simulação de Ciclones
         </h3>
-        <button onClick={onClose} className="text-slate-400 hover:text-white">
+        <button type="button" onClick={onClose} className="text-slate-400 hover:text-white" aria-label="Fechar painel de ciclones">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
@@ -41,9 +47,15 @@ export default function CyclonePanel({
         {/* Toggle Ativar/Desativar */}
         <label className="flex items-center justify-between cursor-pointer">
           <span className="text-sm font-medium">Activar Camada</span>
-          <div className={`w-10 h-5 rounded-full transition-colors relative ${activeCyclone ? 'bg-indigo-500' : 'bg-slate-700'}`} onClick={() => setActiveCyclone(!activeCyclone)}>
-            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${activeCyclone ? 'left-5' : 'left-1'}`}></div>
-          </div>
+          <button
+            type="button"
+            aria-pressed={activeCyclone}
+            aria-label="Activar ou desactivar camada de ciclone"
+            className={`w-10 h-5 rounded-full transition-colors relative ${activeCyclone ? 'bg-indigo-500' : 'bg-slate-700'}`}
+            onClick={() => setActiveCyclone(previous => !previous)}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${activeCyclone ? 'left-5' : 'left-1'}`}></span>
+          </button>
         </label>
 
         {/* Seleção do Ciclone */}
@@ -92,6 +104,7 @@ export default function CyclonePanel({
           <label className="block text-xs text-slate-400 mb-2">Visualização</label>
           <div className="flex gap-2 bg-slate-800 p-1 rounded-lg">
             <button
+              type="button"
               onClick={() => setCycloneLayerType('rain')}
               disabled={!activeCyclone}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${cycloneLayerType === 'rain' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -99,6 +112,7 @@ export default function CyclonePanel({
               Precipitação (Chuva)
             </button>
             <button
+              type="button"
               onClick={() => setCycloneLayerType('wind')}
               disabled={!activeCyclone}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${cycloneLayerType === 'wind' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
@@ -112,7 +126,7 @@ export default function CyclonePanel({
         {activeCyclone && (
           <div className="bg-slate-900/50 p-3 rounded border border-slate-800 mt-2">
             <div className="text-[10px] text-slate-400 mb-1">
-              {cycloneLayerType === 'rain' ? 'Acumulado GPM IMERG (mm)' : 'Máximo Rajada ERA5 (km/h)'}
+              {cycloneLayerType === 'rain' ? 'Acumulado GPM IMERG (mm)' : 'Máximo horário ERA5-Land a 10 m (km/h)'}
             </div>
             {cycloneLayerType === 'rain' ? (
               <div className="h-2 w-full rounded-sm bg-gradient-to-r from-[#e0f3db] via-[#4eb3d3] to-[#b30000]"></div>
@@ -125,6 +139,9 @@ export default function CyclonePanel({
             </div>
           </div>
         )}
+        <p className="text-[10px] text-slate-500 leading-relaxed">
+          Camadas ambientais de apoio; não representam trajetória oficial, rajada observada ou categoria do ciclone.
+        </p>
       </div>
     </div>
   );

@@ -7,12 +7,13 @@ import { BitmapLayer } from '@deck.gl/layers';
 import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
-import { useAdminBoundaryLayers, AdminBoundaryPanel } from './components/AdminBoundaryPanel';
+import { AdminBoundaryPanel } from './components/AdminBoundaryPanel';
+import useAdminBoundaryLayers from './hooks/useAdminBoundaryLayers';
 import CyclonePanel from './components/CyclonePanel';
 import FloodImpactPanel from './components/FloodImpactPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_URL = 'http://localhost:8000/api/';
+import { API_BASE_URL } from './config';
 
 const MALARIA_MONTHS = [
   'Anual', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -30,9 +31,9 @@ const INITIAL_VIEW_STATE = {
   zoom: 1.5,
   bearing: 0
 };
+const DEFAULT_BUFFER_RADIUS_KM = 5;
 
 export default function App() {
-  const [apiData, setApiData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [viewState, setViewState] = useState(INITIAL_VIEW_STATE);
@@ -47,7 +48,6 @@ export default function App() {
 
   
   // Estado das camadas do mapa
-  const [showBoundaries, setShowBoundaries] = useState(false);
   const [showInfrastructure, setShowInfrastructure] = useState(false);
   
   // Estado da Simulação GEE
@@ -90,7 +90,6 @@ export default function App() {
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
-  const [uploadLayerType, setUploadLayerType] = useState('infrastructure');
   const [uploading, setUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(null);
   const fileInputRef = useRef(null);
@@ -101,7 +100,6 @@ export default function App() {
   
   // Buffer Interativo (Turf.js)
   const [bufferData, setBufferData] = useState(null);
-  const [bufferRadius, setBufferRadius] = useState(5); // km
   const [showTerrain, setShowTerrain] = useState(true);
   
   const [waterLevel, setWaterLevel] = useState(2.0);
@@ -116,9 +114,8 @@ export default function App() {
 
   useEffect(() => {
     // Tenta conectar à API do Django
-    axios.get(API_URL)
-      .then(response => {
-        setApiData(response.data);
+    axios.get(API_BASE_URL)
+      .then(() => {
         setLoading(false);
       })
       .catch(err => {
@@ -129,7 +126,7 @@ export default function App() {
   }, []);
 
   const vectorLayers = useMapLayers({
-    showBoundaries,
+    showBoundaries: false,
     showInfrastructure,
     setTooltipInfo,
     gwCustomPoints,
@@ -168,7 +165,7 @@ export default function App() {
   const fetchGwTimeSeries = async () => {
     setGwLoading(true);
     try {
-      const response = await axios.post(`${API_URL}simulation/gee/groundwater/timeseries/`, {
+      const response = await axios.post(`${API_BASE_URL}simulation/gee/groundwater/timeseries/`, {
         start_date: "2018-01-01",
         end_date: "2023-12-31",
         points: gwCustomPoints.length > 0 ? gwCustomPoints : []
@@ -203,10 +200,10 @@ export default function App() {
     
     const formData = new FormData();
     formData.append('file', uploadFile);
-    formData.append('layer_type', uploadLayerType);
+    formData.append('layer_type', 'infrastructure');
     
     try {
-      const res = await axios.post(`${API_URL}upload/`, formData, {
+      const res = await axios.post(`${API_BASE_URL}upload/`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       setUploadSuccess(res.data.message);
@@ -229,7 +226,9 @@ export default function App() {
       return;
     }
     try {
-      const res = await axios.get(`${API_URL}infrastructures/?search=${query}`);
+      const res = await axios.get(
+        `${API_BASE_URL}infrastructures/?search=${encodeURIComponent(query)}`,
+      );
       const data = res.data.features || res.data.results || res.data;
       // Filtra pelo nome
       const filtered = (Array.isArray(data) ? data : []).filter(f =>
@@ -248,6 +247,12 @@ export default function App() {
     setBufferData(buffered);
   };
 
+  const updateFloodParameter = (setter, value) => {
+    setter(value);
+    setFloodImpactTileUrl(null);
+    setFloodStats(null);
+  };
+
   // Enviar Mensagem para o Assistente IA
   const handleSendChatMessage = async () => {
     if (!chatInput.trim()) return;
@@ -258,7 +263,7 @@ export default function App() {
     setChatLoading(true);
 
     try {
-      const res = await axios.post(`${API_URL}agent/chat/`, { message: userMessage });
+      const res = await axios.post(`${API_BASE_URL}agent/chat/`, { message: userMessage });
       const data = res.data;
       
       setChatMessages(prev => [...prev, { role: 'assistant', content: data.message }]);
@@ -278,6 +283,7 @@ export default function App() {
         }
       }
     } catch (err) {
+      console.error('Erro no assistente IA:', err);
       setChatMessages(prev => [...prev, { role: 'assistant', content: 'Desculpe, ocorreu um erro ao contactar o servidor da IA.' }]);
     } finally {
       setChatLoading(false);
@@ -615,10 +621,7 @@ export default function App() {
               </h3>
               <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
                 <label className="text-[10px] text-slate-400 block mb-1">Carregar Dados Espaciais (.zip/.geojson)</label>
-                <select value={uploadLayerType} onChange={e => setUploadLayerType(e.target.value)} className="w-full bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded p-1.5 mb-2 outline-none">
-                  <option value="infrastructure">Infraestruturas (Pontos)</option>
-                  <option value="boundary">Limites (Polígonos)</option>
-                </select>
+                <p className="text-[10px] text-slate-500 mb-2">Camada: infraestruturas</p>
                 <input 
                   ref={fileInputRef}
                   type="file" 
@@ -724,7 +727,7 @@ export default function App() {
                       const coords = r.geometry?.coordinates;
                       if (coords) {
                         const [lng, lat] = Array.isArray(coords[0]) ? coords[0] : coords;
-                        createBuffer(lng, lat, bufferRadius);
+                        createBuffer(lng, lat, DEFAULT_BUFFER_RADIUS_KM);
                       }
                       setSearchQuery('');
                       setSearchResults([]);
@@ -801,7 +804,9 @@ export default function App() {
             )}
           </DeckGL>
 
-          {(simGEEFlood || showLULC || showLithology || showGroundwater || showMalaria) && geeError && (
+          {(simGEEFlood || showLULC || showLithology || showGroundwater ||
+            showMalaria || activeCyclone || floodImpactTileUrl ||
+            adminActiveLevels.length > 0) && geeError && (
             <div className="absolute bottom-6 left-6 z-[1000]">
               <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-amber-400">
@@ -837,19 +842,20 @@ export default function App() {
         <FloodImpactPanel
           onClose={() => setShowFloodImpactPanel(false)}
           floodEngine={floodEngine}
-          setFloodEngine={setFloodEngine}
+          setFloodEngine={value => updateFloodParameter(setFloodEngine, value)}
           floodReturnPeriod={floodReturnPeriod}
-          setFloodReturnPeriod={setFloodReturnPeriod}
+          setFloodReturnPeriod={value => updateFloodParameter(setFloodReturnPeriod, value)}
           floodS1Start={floodS1Start}
-          setFloodS1Start={setFloodS1Start}
+          setFloodS1Start={value => updateFloodParameter(setFloodS1Start, value)}
           floodS1End={floodS1End}
-          setFloodS1End={setFloodS1End}
+          setFloodS1End={value => updateFloodParameter(setFloodS1End, value)}
           floodStats={floodStats}
           floodLoading={floodLoading}
           onSimulate={async () => {
             setFloodLoading(true);
             setFloodStats(null);
             setFloodImpactTileUrl(null);
+            setGeeError(null);
             try {
               const body = {
                 engine: floodEngine,
@@ -857,7 +863,7 @@ export default function App() {
                 s1_start: floodEngine === 'sentinel1' ? floodS1Start : undefined,
                 s1_end: floodEngine === 'sentinel1' ? floodS1End : undefined,
               };
-              const res = await axios.post(`${API_URL}simulation/gee/flood-impact/`, body);
+              const res = await axios.post(`${API_BASE_URL}simulation/gee/flood-impact/`, body);
               const d = res.data.data;
               setFloodImpactTileUrl(d.gee_layer.tile_url);
               setFloodStats(d.stats);

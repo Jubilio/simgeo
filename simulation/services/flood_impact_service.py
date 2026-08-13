@@ -1,145 +1,195 @@
+from datetime import date
+
 import ee
+
 from georisksim.gee_auth import initialize_gee
+
 from .mozambique_geometry import get_mozambique_geometry
 
-def get_flood_impact(engine='glofas', return_period=100, s1_start=None, s1_end=None):
-    """
-    Simulação de Impacto de Cheias.
-    Retorna o MapID para visualização e as estatísticas de exposição calculadas via GEE.
-    """
-    if not initialize_gee():
-        raise Exception("Google Earth Engine não pôde ser inicializado.")
 
-    moz = get_mozambique_geometry()
-    
+FLOOD_ENGINES = {"glofas", "sentinel1"}
+GLOFAS_RETURN_PERIODS = {10, 20, 50, 75, 100, 200, 500}
+MAX_SENTINEL1_INTERVAL_DAYS = 30
+FLOOD_DEPTH_THRESHOLD_M = 0.15
+EXPOSURE_SCALE_M = 100
+
+
+def validate_flood_impact_parameters(
+    engine="glofas", return_period=100, s1_start=None, s1_end=None
+):
+    """Validate and normalize flood-impact request parameters."""
+    if engine not in FLOOD_ENGINES:
+        raise ValueError("engine deve ser 'glofas' ou 'sentinel1'.")
+
+    if engine == "glofas":
+        try:
+            return_period = int(return_period)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("return_period deve ser um número inteiro.") from exc
+
+        if return_period not in GLOFAS_RETURN_PERIODS:
+            supported = ", ".join(str(value) for value in sorted(GLOFAS_RETURN_PERIODS))
+            raise ValueError(f"return_period inválido. Valores suportados: {supported}.")
+        return engine, return_period, None, None
+
+    if not s1_start or not s1_end:
+        raise ValueError("s1_start e s1_end são obrigatórios para Sentinel-1.")
+
     try:
-        # 1. HAZARD: Obter a máscara de cheia (1 para inundado, 0 sem água)
-        flood_mask = None
-        
-        if engine == 'glofas':
-            # GLOFAS Flood Hazard (Profundidade da cheia)
-            # O dataset JRC/CEMS_GLOFAS/FloodHazard/v1 contém imagens por período de retorno
-            # Vamos assumir que filtramos pelo período ou apenas agregamos a coleção
-            try:
-                glofas = ee.ImageCollection('JRC/CEMS_GLOFAS/FloodHazard/v1')
-                # A banda é tipicamente 'depth' ou a própria imagem tem o valor da profundidade
-                # Pegamos o máximo de profundidade para o período
-                depth = glofas.max() 
-                flood_mask = depth.gt(0.15) # Mais de 15cm de água
-            except:
-                # Fallback seguro caso a coleção exata varie
-                gsw = ee.Image('JRC/GSW1_4/GlobalSurfaceWater')
-                flood_mask = gsw.select('max_extent').eq(1)
+        parsed_start = date.fromisoformat(str(s1_start))
+        parsed_end = date.fromisoformat(str(s1_end))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("s1_start e s1_end devem usar o formato YYYY-MM-DD.") from exc
 
-        elif engine == 'sentinel1':
-            # Detecção de anomalia de água com Sentinel-1 SAR
-            if not s1_start or not s1_end:
-                raise ValueError("Datas do Sentinel-1 são obrigatórias.")
-                
-            # Pré-evento: 1 mês antes do start
-            s1_pre_start = ee.Date(s1_start).advance(-1, 'month')
-            s1_pre_end = ee.Date(s1_start)
-            
-            s1_post_start = ee.Date(s1_start)
-            s1_post_end = ee.Date(s1_end)
-            
-            s1 = ee.ImageCollection('COPERNICUS/S1_GRD') \
-                    .filterBounds(moz) \
-                    .filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VH')) \
-                    .filter(ee.Filter.eq('instrumentMode', 'IW')) \
-                    .select('VH')
-                    
-            pre_event = s1.filterDate(s1_pre_start, s1_pre_end).median()
-            post_event = s1.filterDate(s1_post_start, s1_post_end).median()
-            
-            # Filtro de speckle básico (focal median)
-            pre_smooth = pre_event.focal_median(50, 'circle', 'meters')
-            post_smooth = post_event.focal_median(50, 'circle', 'meters')
-            
-            # Limites empíricos de SAR para água
-            flood_mask = post_smooth.lt(-18).And(pre_smooth.gt(-16))
-            
+    if parsed_end < parsed_start:
+        raise ValueError("s1_start deve ser anterior ou igual a s1_end.")
+
+    interval_days = (parsed_end - parsed_start).days + 1
+    if interval_days > MAX_SENTINEL1_INTERVAL_DAYS:
+        raise ValueError(
+            f"O intervalo Sentinel-1 não pode exceder "
+            f"{MAX_SENTINEL1_INTERVAL_DAYS} dias."
+        )
+
+    return engine, None, parsed_start.isoformat(), parsed_end.isoformat()
+
+
+def _glofas_flood_mask(mozambique, return_period):
+    collection = ee.ImageCollection(
+        "JRC/CEMS_GLOFAS/FloodHazard/v2_1"
+    ).filterBounds(mozambique)
+    depth_band = f"RP{return_period}_depth"
+    depth = collection.select(depth_band).mosaic().rename("flood_depth_m")
+    permanent_water = (
+        collection.select("permanent_water_class").mosaic().unmask(0).eq(1)
+    )
+    return depth.gt(FLOOD_DEPTH_THRESHOLD_M).And(
+        permanent_water.Not()
+    ).rename("flooded")
+
+
+def _sentinel1_flood_mask(mozambique, start_date, end_date):
+    pre_start = ee.Date(start_date).advance(-1, "month")
+    pre_end = ee.Date(start_date)
+    post_start = ee.Date(start_date)
+    post_end = ee.Date(end_date).advance(1, "day")
+
+    sentinel1 = (
+        ee.ImageCollection("COPERNICUS/S1_GRD")
+        .filterBounds(mozambique)
+        .filter(ee.Filter.listContains("transmitterReceiverPolarisation", "VH"))
+        .filter(ee.Filter.eq("instrumentMode", "IW"))
+        .filter(ee.Filter.eq("resolution_meters", 10))
+        .select("VH")
+    )
+
+    pre_event = sentinel1.filterDate(pre_start, pre_end).median().focal_median(
+        50, "circle", "meters"
+    )
+    post_event = sentinel1.filterDate(post_start, post_end).median().focal_median(
+        50, "circle", "meters"
+    )
+
+    # Screening thresholds: newly dark radar returns after the event. These
+    # thresholds need local validation before operational use.
+    return post_event.lt(-18).And(pre_event.gt(-16)).rename("flooded")
+
+
+def get_flood_impact(
+    engine="glofas", return_period=100, s1_start=None, s1_end=None
+):
+    """Return a flood-hazard tile and first-order exposure estimates."""
+    engine, return_period, s1_start, s1_end = validate_flood_impact_parameters(
+        engine, return_period, s1_start, s1_end
+    )
+
+    if not initialize_gee():
+        raise RuntimeError("Google Earth Engine não pôde ser inicializado.")
+
+    mozambique = get_mozambique_geometry()
+
+    try:
+        if engine == "glofas":
+            flood_mask = _glofas_flood_mask(mozambique, return_period)
+            hazard_dataset = "JRC/CEMS_GLOFAS/FloodHazard/v2_1"
         else:
-            raise ValueError("Motor desconhecido. Use 'glofas' ou 'sentinel1'.")
-            
-        flood_mask_moz = flood_mask.clip(moz)
+            flood_mask = _sentinel1_flood_mask(mozambique, s1_start, s1_end)
+            hazard_dataset = "COPERNICUS/S1_GRD"
 
-        # 2. EXPOSURE: População (WorldPop) e Agricultura (ESA WorldCover)
-        
-        # População (2020)
-        pop_dataset = ee.ImageCollection("WorldPop/GP/100m/pop") \
-            .filterDate('2020-01-01', '2021-01-01') \
-            .mean() \
-            .clip(moz)
-            
-        # Agricultura (Classe 40 no ESA WorldCover v100)
-        landcover = ee.ImageCollection("ESA/WorldCover/v100").first().clip(moz)
+        flood_mask = flood_mask.clip(mozambique)
+
+        population = (
+            ee.ImageCollection("WorldPop/GP/100m/pop")
+            .filter(ee.Filter.eq("country", "MOZ"))
+            .filter(ee.Filter.eq("year", 2020))
+            .mosaic()
+            .select("population")
+            .clip(mozambique)
+        )
+        landcover = (
+            ee.ImageCollection("ESA/WorldCover/v100")
+            .first()
+            .select("Map")
+            .clip(mozambique)
+        )
         cropland = landcover.eq(40)
-        
-        # 3. INTERSECÇÃO
-        # Multiplicar a máscara de cheia (0 ou 1) pela densidade populacional
-        exposed_pop_img = pop_dataset.multiply(flood_mask_moz)
-        
-        # Pixels agrícolas inundados (1) * área do pixel
-        exposed_crop_area_sqm = cropland.multiply(flood_mask_moz).multiply(ee.Image.pixelArea())
 
-        # 4. ESTATÍSTICAS (ReduceRegion)
-        # scale=1000m: rápido o suficiente para uma chamada web (GLOFAS é ~1km de resolução nativa)
-        scale_res = 1000
-
-        stats_pop = exposed_pop_img.reduceRegion(
-            reducer=ee.Reducer.sum(),
-            geometry=moz,
-            scale=scale_res,
-            maxPixels=1e9,
-            bestEffort=True
+        exposed_population = population.updateMask(flood_mask).rename("population")
+        exposed_cropland = (
+            ee.Image.pixelArea()
+            .updateMask(cropland.And(flood_mask))
+            .rename("cropland_area_m2")
         )
 
-        stats_crop = exposed_crop_area_sqm.reduceRegion(
+        exposure = ee.Image.cat(
+            [exposed_population, exposed_cropland]
+        ).reduceRegion(
             reducer=ee.Reducer.sum(),
-            geometry=moz,
-            scale=scale_res,
+            geometry=mozambique,
+            scale=EXPOSURE_SCALE_M,
             maxPixels=1e9,
-            bestEffort=True
+            tileScale=4,
         )
+        exposure_values = exposure.getInfo() or {}
+        total_population = exposure_values.get("population", 0) or 0
+        total_cropland_ha = (
+            exposure_values.get("cropland_area_m2", 0) or 0
+        ) / 10_000
 
-        # Um único getInfo() por dicionário (1 round-trip para o GEE em vez de 2-4)
-        pop_dict = stats_pop.getInfo()   # ex: {'population': 12345.6} ou {}
-        crop_dict = stats_crop.getInfo() # ex: {'Map': 987654.3} ou {}
-
-        # Os nomes das bandas podem variar conforme a versão do dataset
-        total_pop = 0
-        if pop_dict:
-            total_pop = next(iter(pop_dict.values()), 0) or 0
-
-        total_crop_sqm = 0
-        if crop_dict:
-            total_crop_sqm = next(iter(crop_dict.values()), 0) or 0
-
-        total_crop_ha = total_crop_sqm / 10000.0
-
-        # 5. VISUALIZAÇÃO
-        # Combinar a mancha da cheia (vermelho/azul) com a população afetada
-        # Para a interface, vamos mostrar apenas a máscara de inundação em ciano
-        vis_params = {
-            'min': 0,
-            'max': 1,
-            'palette': ['transparent', '#00ffff']
-        }
-        
-        map_id_dict = flood_mask_moz.updateMask(flood_mask_moz).getMapId(vis_params)
+        map_id = flood_mask.selfMask().getMapId(
+            {"min": 1, "max": 1, "palette": ["#00ffff"]}
+        )
 
         return {
-            'gee_layer': {
-                'mapid': map_id_dict['mapid'],
-                'token': map_id_dict['token'],
-                'tile_url': map_id_dict['tile_fetcher'].url_format,
+            "gee_layer": {
+                "mapid": map_id["mapid"],
+                "token": map_id.get("token", ""),
+                "tile_url": map_id["tile_fetcher"].url_format,
             },
-            'stats': {
-                'exposed_population': round(total_pop),
-                'exposed_agriculture_ha': round(total_crop_ha, 2)
-            }
+            "stats": {
+                "exposed_population": round(total_population),
+                "exposed_agriculture_ha": round(total_cropland_ha, 2),
+            },
+            "metadata": {
+                "country": "Mozambique",
+                "engine": engine,
+                "return_period": return_period,
+                "event_start": s1_start,
+                "event_end": s1_end,
+                "hazard_dataset": hazard_dataset,
+                "population_dataset": "WorldPop/GP/100m/pop (2020, MOZ)",
+                "landcover_dataset": "ESA/WorldCover/v100 (2020)",
+                "exposure_scale_m": EXPOSURE_SCALE_M,
+                "flood_depth_threshold_m": (
+                    FLOOD_DEPTH_THRESHOLD_M if engine == "glofas" else None
+                ),
+                "disclaimer": (
+                    "Estimativa de triagem baseada em hazard e exposição. "
+                    "Não substitui modelação hidráulica local nem avaliação de campo."
+                ),
+            },
         }
-        
-    except Exception as e:
-        raise Exception(f"Erro ao processar Impacto da Cheia no GEE: {e}")
+    except ee.EEException as exc:
+        raise RuntimeError(
+            f"Erro ao processar impacto da cheia no GEE: {exc}"
+        ) from exc

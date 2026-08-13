@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { GeoJsonLayer, ScatterplotLayer } from '@deck.gl/layers';
 
-const API_BASE = 'http://localhost:8000/api/';
+import { API_BASE_URL } from '../config';
 
 export default function useMapLayers({ showBoundaries, showInfrastructure, setTooltipInfo, gwCustomPoints, bufferData }) {
   const [boundaries, setBoundaries] = useState(null);
@@ -11,7 +11,7 @@ export default function useMapLayers({ showBoundaries, showInfrastructure, setTo
   // Fetch Limites Administrativos
   useEffect(() => {
     if (showBoundaries && !boundaries) {
-      axios.get(`${API_BASE}boundaries/`)
+      axios.get(`${API_BASE_URL}boundaries/`)
         .then(res => {
           const geoData = res.data.results ? res.data.results : res.data;
           setBoundaries(geoData);
@@ -23,7 +23,7 @@ export default function useMapLayers({ showBoundaries, showInfrastructure, setTo
   // Fetch Infraestruturas
   useEffect(() => {
     if (showInfrastructure && !infrastructure) {
-      axios.get(`${API_BASE}infrastructures/`)
+      axios.get(`${API_BASE_URL}infrastructures/`)
         .then(res => {
           const geoData = res.data.results ? res.data.results : res.data;
           setInfrastructure(geoData);
