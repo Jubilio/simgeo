@@ -238,10 +238,12 @@ class GEECycloneView(APIView):
         try:
             layer_data = get_cyclone_tiles(start_date, end_date, layer_type)
             return Response({"status": "success", "gee_layer": layer_data})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
-
-
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 class GEEFloodImpactView(APIView):
     permission_classes = [AllowAny]
@@ -256,5 +258,9 @@ class GEEFloodImpactView(APIView):
         try:
             result = get_flood_impact(engine, return_period, s1_start, s1_end)
             return Response({"status": "success", "data": result})
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
+            return Response(
+                {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

@@ -37,6 +37,8 @@ class APIRootView(APIView):
                 'simulation_gee_groundwater_ts': request.build_absolute_uri('simulation/gee/groundwater/timeseries/'),
                 'simulation_gee_malaria_suitability': request.build_absolute_uri('simulation/gee/malaria-suitability/'),
                 'simulation_gee_admin_boundaries': request.build_absolute_uri('simulation/gee/admin-boundaries/'),
+                'simulation_gee_cyclone': request.build_absolute_uri('simulation/gee/cyclone/'),
+                'simulation_gee_flood_impact': request.build_absolute_uri('simulation/gee/flood-impact/'),
             }
         })
 

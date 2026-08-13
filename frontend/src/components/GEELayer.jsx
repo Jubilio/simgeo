@@ -1,9 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { TileLayer } from '@deck.gl/geo-layers';
 import { BitmapLayer } from '@deck.gl/layers';
 
-const API_BASE = 'http://localhost:8000/api/';
+import { API_BASE_URL } from '../config';
 
 // Configuração padrão para TileLayers GEE com rate limiting
 const GEE_TILE_CONFIG = {
@@ -57,13 +57,14 @@ export default function useGEELayer({
 
   const abortRefs = useRef({});
 
-  function fetchGEE(key, url, setter) {
+  const fetchGEE = useCallback((key, url, setter) => {
     if (abortRefs.current[key]) {
       abortRefs.current[key].abort();
     }
     const controller = new AbortController();
     abortRefs.current[key] = controller;
     setter(null);
+    setErrorMessage?.(null);
     axios.get(url, { signal: controller.signal })
       .then(res => {
         const tileUrl = res.data?.gee_layer?.tile_url;
@@ -73,45 +74,51 @@ export default function useGEELayer({
         if (axios.isCancel(err)) return;
         console.warn(`Aviso GEE (${key}):`, err);
         const detail = err.response?.data?.detail || err.response?.data?.error || 'Erro ao carregar camada GEE.';
-        setErrorMessage(detail);
+        setErrorMessage?.(detail);
       });
-  }
+  }, [setErrorMessage]);
+
+  const cancelRequest = useCallback((key, setter) => {
+    abortRefs.current[key]?.abort();
+    delete abortRefs.current[key];
+    setter(null);
+  }, []);
+
+  useEffect(() => () => {
+    Object.values(abortRefs.current).forEach(controller => controller.abort());
+  }, []);
 
   useEffect(() => {
     if (activeFlood) {
-      setErrorMessage(null);
-      fetchGEE('flood', `${API_BASE}simulation/gee/flood/?water_level=${waterLevel}`, setFloodTileUrl);
+      fetchGEE('flood', `${API_BASE_URL}simulation/gee/flood/?water_level=${waterLevel}`, setFloodTileUrl);
     } else {
-      setFloodTileUrl(null);
+      cancelRequest('flood', setFloodTileUrl);
     }
-  }, [activeFlood, waterLevel]);
+  }, [activeFlood, waterLevel, cancelRequest, fetchGEE]);
 
   useEffect(() => {
     if (activeLULC) {
-      setErrorMessage(null);
-      fetchGEE('lulc', `${API_BASE}simulation/gee/lulc/`, setLulcTileUrl);
+      fetchGEE('lulc', `${API_BASE_URL}simulation/gee/lulc/`, setLulcTileUrl);
     } else {
-      setLulcTileUrl(null);
+      cancelRequest('lulc', setLulcTileUrl);
     }
-  }, [activeLULC]);
+  }, [activeLULC, cancelRequest, fetchGEE]);
 
   useEffect(() => {
     if (activeLithology) {
-      setErrorMessage(null);
-      fetchGEE('lithology', `${API_BASE}simulation/gee/lithology/?mineral_type=${lithologyType}`, setLithologyTileUrl);
+      fetchGEE('lithology', `${API_BASE_URL}simulation/gee/lithology/?mineral_type=${lithologyType}`, setLithologyTileUrl);
     } else {
-      setLithologyTileUrl(null);
+      cancelRequest('lithology', setLithologyTileUrl);
     }
-  }, [activeLithology, lithologyType]);
+  }, [activeLithology, lithologyType, cancelRequest, fetchGEE]);
 
   useEffect(() => {
     if (activeGroundwater) {
-      setErrorMessage(null);
-      fetchGEE('groundwater', `${API_BASE}simulation/gee/groundwater/map/?year=${gwYear}&month=${gwMonth}`, setGroundwaterTileUrl);
+      fetchGEE('groundwater', `${API_BASE_URL}simulation/gee/groundwater/map/?year=${gwYear}&month=${gwMonth}`, setGroundwaterTileUrl);
     } else {
-      setGroundwaterTileUrl(null);
+      cancelRequest('groundwater', setGroundwaterTileUrl);
     }
-  }, [activeGroundwater, gwYear, gwMonth]);
+  }, [activeGroundwater, gwYear, gwMonth, cancelRequest, fetchGEE]);
 
   useEffect(() => {
     if (activeMalaria) {
@@ -120,12 +127,11 @@ export default function useGEELayer({
         end_year: malariaEndYear,
         month: malariaMonth
       });
-      fetchGEE('malaria', `${API_BASE}simulation/gee/malaria-suitability/?${params}`, setMalariaTileUrl);
+      fetchGEE('malaria', `${API_BASE_URL}simulation/gee/malaria-suitability/?${params}`, setMalariaTileUrl);
     } else {
-      if (abortRefs.current.malaria) abortRefs.current.malaria.abort();
-      setMalariaTileUrl(null);
+      cancelRequest('malaria', setMalariaTileUrl);
     }
-  }, [activeMalaria, malariaStartYear, malariaEndYear, malariaMonth]);
+  }, [activeMalaria, malariaStartYear, malariaEndYear, malariaMonth, cancelRequest, fetchGEE]);
 
   // Cyclone has its own useEffect so it ONLY fires when cyclone-specific props change
   useEffect(() => {
@@ -135,12 +141,11 @@ export default function useGEELayer({
         end_date: cycloneEnd,
         type: cycloneLayerType
       });
-      fetchGEE('cyclone', `${API_BASE}simulation/gee/cyclone/?${params}`, setCycloneTileUrl);
+      fetchGEE('cyclone', `${API_BASE_URL}simulation/gee/cyclone/?${params}`, setCycloneTileUrl);
     } else {
-      if (abortRefs.current.cyclone) abortRefs.current.cyclone.abort();
-      setCycloneTileUrl(null);
+      cancelRequest('cyclone', setCycloneTileUrl);
     }
-  }, [activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType]);
+  }, [activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType, cancelRequest, fetchGEE]);
 
   const layers = [
     makeGEETileLayer('gee-flood-layer', activeFlood ? floodTileUrl : null, 0.8),

@@ -23,18 +23,20 @@ Esta skill documenta e rege o processo de gestão de ficheiros espaciais enviado
     - Guardar o ficheiro no modelo `SpatialDataset` imediatamente (em `spatial_datasets/`) para retenção a longo prazo e download.
 
 2.  **Processamento em Diretório Temporário**:
+    - Validar número e tamanho descompactado dos membros e bloquear path traversal/symlinks.
     - Extrair os ficheiros do ZIP num `tempfile.TemporaryDirectory()`.
-    - Localizar o ficheiro `.shp`.
+    - Exigir um único Shapefile completo (`.shp`, `.shx` e `.dbf`).
     - Usar `django.contrib.gis.gdal.DataSource` para abrir o `.shp`.
 
 3.  **Mapeamento de Camadas (Features)**:
     - Iterar pela camada do `DataSource` (normalmente índice 0).
-    - Mapear atributos dependendo do `layer_type` (`infrastructure` ou `boundary`).
+    - Nesta versão, aceitar apenas `layer_type=infrastructure`.
     - Converter o `feature.geom` para WKT e injetar via GEOSGeometry.
 
 ## Quality Criteria
 
 - Nunca processar um Shapefile isolado (`.shp`) sem exigir que o utilizador envie o pacote compactado (`.zip`).
+- Nunca usar `ZipFile.extractall()` sem validar os caminhos e limites do arquivo.
 - Ficheiros são guardados no `SpatialDataset` de forma segura.
 - Quaisquer exceções no `DataSource` devolvem um erro legível 400, e não um 500.
 

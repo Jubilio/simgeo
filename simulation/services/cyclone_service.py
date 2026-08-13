@@ -1,112 +1,152 @@
+from datetime import date
+
 import ee
+
 from georisksim.gee_auth import initialize_gee
+
 from .mozambique_geometry import get_mozambique_geometry
 
-# Ciclones predefinidos (datas de pico)
-CYCLONE_EVENTS = {
-    'idai': {
-        'name': 'Ciclone Idai (2019)',
-        'start': '2019-03-14',
-        'end': '2019-03-16'
-    },
-    'kenneth': {
-        'name': 'Ciclone Kenneth (2019)',
-        'start': '2019-04-24',
-        'end': '2019-04-26'
-    },
-    'freddy': {
-        'name': 'Ciclone Freddy (2023)',
-        'start': '2023-03-11',
-        'end': '2023-03-13'
-    }
-}
 
-def get_cyclone_tiles(start_date, end_date, layer_type='rain'):
+MAX_CYCLONE_INTERVAL_DAYS = 30
+CYCLONE_LAYER_TYPES = {"rain", "wind"}
+
+
+def validate_cyclone_parameters(start_date, end_date, layer_type="rain"):
+    """Validate and normalize the parameters used by the cyclone endpoint."""
+    if layer_type not in CYCLONE_LAYER_TYPES:
+        raise ValueError("type deve ser 'rain' ou 'wind'.")
+
+    try:
+        parsed_start = date.fromisoformat(str(start_date))
+        parsed_end = date.fromisoformat(str(end_date))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("start_date e end_date devem usar o formato YYYY-MM-DD.") from exc
+
+    if parsed_end < parsed_start:
+        raise ValueError("A data de início deve ser anterior ou igual à data de fim.")
+
+    interval_days = (parsed_end - parsed_start).days + 1
+    if interval_days > MAX_CYCLONE_INTERVAL_DAYS:
+        raise ValueError(
+            f"O intervalo máximo permitido é de {MAX_CYCLONE_INTERVAL_DAYS} dias."
+        )
+
+    return parsed_start.isoformat(), parsed_end.isoformat(), layer_type
+
+
+def get_cyclone_tiles(start_date, end_date, layer_type="rain"):
     """
-    Retorna os tiles GEE para simulação de ciclones:
-    - 'rain': Precipitação máxima diária (GPM IMERG Daily)
-    - 'wind': Máxima velocidade do vento (ERA5 Daily, componentes U+V)
+    Return GEE tiles for cyclone-related environmental conditions.
+
+    Rain is accumulated IMERG precipitation over the selected period. Wind is
+    the maximum hourly ERA5-Land 10 m wind speed. Neither layer is a
+    reconstructed cyclone track or an observed wind-gust product.
     """
+    start_date, end_date, layer_type = validate_cyclone_parameters(
+        start_date, end_date, layer_type
+    )
+
     if not initialize_gee():
-        raise Exception("Google Earth Engine não pôde ser inicializado.")
+        raise RuntimeError("Google Earth Engine não pôde ser inicializado.")
 
-    # Validar intervalo de datas (máx 30 dias para não travar o servidor)
-    import datetime
-    try:
-        d_start = datetime.date.fromisoformat(start_date)
-        d_end = datetime.date.fromisoformat(end_date)
-        if (d_end - d_start).days > 30:
-            raise ValueError("O intervalo máximo permitido é de 30 dias.")
-        if d_end < d_start:
-            raise ValueError("A data de início deve ser anterior à data de fim.")
-    except ValueError as ve:
-        raise ve
+    mozambique = get_mozambique_geometry()
 
-    moz = get_mozambique_geometry()
-    
     try:
-        # Converter datas para ee.Date
-        # O GEE filterDate é exclusivo no endDate, então adicionamos 1 dia para cobrir o último dia.
         start = ee.Date(start_date)
-        end = ee.Date(end_date).advance(1, 'day')
-        
-        if layer_type == 'rain':
-            # GPM IMERG V06 (30-min) -> .max() evita sum() sobre 100+ imagens e é mais rápido
-            dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_V06') \
-                .filterDate(start, end) \
-                .select('precipitationCal')
-            
-            # Pico de precipitação (mm/h) no período — representa a intensidade máxima da chuva
-            peak_rain = dataset.max()
-            img_to_vis = peak_rain.clip(moz)
-            
-            vis_params = {
-                'min': 5,
-                'max': 50,
-                'palette': ['#e0f3db', '#a8ddb5', '#4eb3d3', '#2b8cbe', '#0868ac', '#084081', '#ffc107', '#ff5722', '#b30000']
-            }
-            
-            map_id_dict = img_to_vis.getMapId(vis_params)
-            
-        elif layer_type == 'wind':
-            # ECMWF ERA5 Daily Aggregates - Não tem gust, vamos calcular velocidade média
-            dataset = ee.ImageCollection('ECMWF/ERA5/DAILY') \
+        # Earth Engine filterDate excludes the end date.
+        end = ee.Date(end_date).advance(1, "day")
+
+        if layer_type == "rain":
+            precipitation = (
+                ee.ImageCollection("NASA/GPM_L3/IMERG_V07")
                 .filterDate(start, end)
-            
-            def calc_wind_speed(img):
-                u = img.select('u_component_of_wind_10m')
-                v = img.select('v_component_of_wind_10m')
-                ws = u.pow(2).add(v.pow(2)).sqrt().rename('wind_speed')
-                return img.addBands(ws)
-                
-            # Máximo absoluto durante o período
-            max_wind = dataset.map(calc_wind_speed).select('wind_speed').max()
-            
-            # Converter de m/s para km/h (multiplicar por 3.6)
-            wind_kmh = max_wind.multiply(3.6)
-            
-            img_to_vis = wind_kmh.clip(moz)
-            
-            # Heatmap de velocidade do vento (km/h)
+                .select("precipitation")
+            )
+
+            # IMERG is a half-hourly rate in mm/hour. Each observation therefore
+            # contributes rate * 0.5 hours to the period accumulation.
+            image = (
+                precipitation.sum()
+                .multiply(0.5)
+                .rename("accumulated_rainfall_mm")
+                .clip(mozambique)
+            )
+            dataset_id = "NASA/GPM_L3/IMERG_V07"
+            units = "mm"
+            aggregation = "period_sum"
             vis_params = {
-                'min': 50,
-                'max': 200,
-                'palette': ['#ffffcc', '#ffeda0', '#fed976', '#feb24c', '#fd8d3c', '#fc4e2a', '#e31a1c', '#bd0026', '#800026']
+                "min": 20,
+                "max": 300,
+                "palette": [
+                    "#e0f3db",
+                    "#a8ddb5",
+                    "#4eb3d3",
+                    "#2b8cbe",
+                    "#0868ac",
+                    "#084081",
+                    "#ffc107",
+                    "#ff5722",
+                    "#b30000",
+                ],
             }
-            
-            map_id_dict = img_to_vis.getMapId(vis_params)
-            
         else:
-            raise ValueError("layer_type deve ser 'rain' ou 'wind'")
-            
+            wind = ee.ImageCollection("ECMWF/ERA5_LAND/HOURLY").filterDate(start, end)
+
+            def calculate_wind_speed(image):
+                u_component = image.select("u_component_of_wind_10m")
+                v_component = image.select("v_component_of_wind_10m")
+                return (
+                    u_component.pow(2)
+                    .add(v_component.pow(2))
+                    .sqrt()
+                    .rename("wind_speed")
+                    .copyProperties(image, ["system:time_start"])
+                )
+
+            image = (
+                wind.map(calculate_wind_speed)
+                .max()
+                .multiply(3.6)
+                .rename("maximum_hourly_wind_speed_kmh")
+                .clip(mozambique)
+            )
+            dataset_id = "ECMWF/ERA5_LAND/HOURLY"
+            units = "km/h"
+            aggregation = "hourly_maximum"
+            vis_params = {
+                "min": 50,
+                "max": 200,
+                "palette": [
+                    "#ffffcc",
+                    "#ffeda0",
+                    "#fed976",
+                    "#feb24c",
+                    "#fd8d3c",
+                    "#fc4e2a",
+                    "#e31a1c",
+                    "#bd0026",
+                    "#800026",
+                ],
+            }
+
+        map_id = image.getMapId(vis_params)
         return {
-            'mapid': map_id_dict['mapid'],
-            'token': map_id_dict['token'],
-            'tile_url': map_id_dict['tile_fetcher'].url_format,
-            'start_date': start_date,
-            'end_date': end_date,
-            'type': layer_type
+            "mapid": map_id["mapid"],
+            "token": map_id.get("token", ""),
+            "tile_url": map_id["tile_fetcher"].url_format,
+            "start_date": start_date,
+            "end_date": end_date,
+            "type": layer_type,
+            "metadata": {
+                "country": "Mozambique",
+                "dataset": dataset_id,
+                "units": units,
+                "aggregation": aggregation,
+                "disclaimer": (
+                    "Indicador ambiental de apoio. Não representa trajetória oficial, "
+                    "rajada observada nem categoria do ciclone."
+                ),
+            },
         }
-        
-    except Exception as e:
-        raise Exception(f"Erro ao processar dados de ciclone no GEE: {e}")
+    except ee.EEException as exc:
+        raise RuntimeError(f"Erro ao processar dados de ciclone no GEE: {exc}") from exc

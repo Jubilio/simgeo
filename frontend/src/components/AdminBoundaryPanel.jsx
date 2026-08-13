@@ -1,85 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
-import axios from 'axios';
-import { TileLayer } from '@deck.gl/geo-layers';
-import { BitmapLayer } from '@deck.gl/layers';
-
-const API_BASE = 'http://localhost:8000/api/';
+import { useEffect, useState, useRef } from 'react';
 
 const LEVEL_META = {
   level1: { label: 'Províncias', color: '#FF6B35', shortLabel: 'ADM1' },
   level2: { label: 'Distritos',  color: '#4ECDC4', shortLabel: 'ADM2' },
 };
-
-const TILE_CONFIG = {
-  minZoom: 0,
-  maxZoom: 14,
-  tileSize: 256,
-  maxRequests: 2,
-  maxCacheSize: 150,
-  refinementStrategy: 'no-overlap',
-};
-
-/**
- * Hook que gere as camadas de limites administrativos GAUL.
- */
-export function useAdminBoundaryLayers({ activeLevels, nameFilter, country = 'Mozambique', setErrorMessage }) {
-  const [tileUrls, setTileUrls] = useState({ level1: null, level2: null });
-  const abortRefs = useRef({});
-
-  const fetchLevel = useCallback((level) => {
-    if (abortRefs.current[level]) abortRefs.current[level].abort();
-    const ctrl = new AbortController();
-    abortRefs.current[level] = ctrl;
-
-    setTileUrls(prev => ({ ...prev, [level]: null }));
-
-    const params = new URLSearchParams({ level, country });
-    if (nameFilter && nameFilter.trim().length > 1) params.set('name_filter', nameFilter.trim());
-
-    axios.get(`${API_BASE}simulation/gee/admin-boundaries/?${params}`, { signal: ctrl.signal })
-      .then(res => {
-        const url = res.data?.gee_layer?.tile_url;
-        if (url) setTileUrls(prev => ({ ...prev, [level]: url }));
-      })
-      .catch(err => {
-        if (axios.isCancel(err)) return;
-        console.warn(`GAUL ${level} error:`, err);
-        setErrorMessage?.(`Erro ao carregar ${LEVEL_META[level].label}: ${err.response?.data?.error || err.message}`);
-      });
-  }, [nameFilter, country]);
-
-  // Carregar/cancelar quando activeLevels ou nameFilter mudam
-  useEffect(() => {
-    ['level1', 'level2'].forEach(level => {
-      if (activeLevels.includes(level)) {
-        fetchLevel(level);
-      } else {
-        if (abortRefs.current[level]) abortRefs.current[level].abort();
-        setTileUrls(prev => ({ ...prev, [level]: null }));
-      }
-    });
-  }, [activeLevels.join(','), nameFilter]);
-
-  // Construir as camadas DeckGL
-  const layers = ['level1', 'level2']
-    .filter(level => activeLevels.includes(level) && tileUrls[level])
-    .map(level => new TileLayer({
-      ...TILE_CONFIG,
-      id: `gaul-${level}-${nameFilter || 'all'}`,
-      data: tileUrls[level],
-      opacity: 0.9,
-      renderSubLayers: props => {
-        const { bbox: { west, south, east, north } } = props.tile;
-        return new BitmapLayer(props, {
-          data: null,
-          image: props.data,
-          bounds: [west, south, east, north],
-        });
-      },
-    }));
-
-  return { layers, tileUrls };
-}
 
 /**
  * Painel de controlo de Limites Administrativos (para usar na sidebar).
@@ -87,6 +11,12 @@ export function useAdminBoundaryLayers({ activeLevels, nameFilter, country = 'Mo
 export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, setNameFilter }) {
   const [inputValue, setInputValue] = useState(nameFilter || '');
   const debounceRef = useRef(null);
+
+  useEffect(() => {
+    setInputValue(nameFilter || '');
+  }, [nameFilter]);
+
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   const toggleLevel = (level) => {
     setActiveLevels(prev =>
@@ -120,6 +50,7 @@ export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, 
           const active = activeLevels.includes(level);
           return (
             <button
+              type="button"
               key={level}
               onClick={() => toggleLevel(level)}
               style={{
@@ -149,7 +80,7 @@ export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, 
           style={styles.searchInput}
         />
         {inputValue && (
-          <button onClick={clearFilter} style={styles.clearBtn} title="Limpar">✕</button>
+          <button type="button" onClick={clearFilter} style={styles.clearBtn} title="Limpar">✕</button>
         )}
       </div>
 

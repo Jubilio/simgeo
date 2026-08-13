@@ -1,6 +1,4 @@
-import React, { useState } from 'react';
-
-const RETURN_PERIODS = [5, 10, 20, 50, 100, 200, 500];
+const RETURN_PERIODS = [10, 20, 50, 75, 100, 200, 500];
 
 function StatCard({ label, value, unit, color }) {
   return (
@@ -16,7 +14,6 @@ function StatCard({ label, value, unit, color }) {
 
 export default function FloodImpactPanel({
   onClose,
-  activeFloodImpact, setActiveFloodImpact,
   floodEngine, setFloodEngine,
   floodReturnPeriod, setFloodReturnPeriod,
   floodS1Start, setFloodS1Start,
@@ -34,7 +31,7 @@ export default function FloodImpactPanel({
           </svg>
           Simulação de Impacto de Cheias
         </h3>
-        <button onClick={onClose} className="text-slate-400 hover:text-white">
+        <button type="button" onClick={onClose} className="text-slate-400 hover:text-white" aria-label="Fechar painel de impacto de cheias">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -48,12 +45,14 @@ export default function FloodImpactPanel({
           <label className="block text-xs text-slate-400 mb-2">Motor de Simulação</label>
           <div className="flex gap-2 bg-slate-800 p-1 rounded-lg">
             <button
+              type="button"
               onClick={() => setFloodEngine('glofas')}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${floodEngine === 'glofas' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               GLOFAS (Período Retorno)
             </button>
             <button
+              type="button"
               onClick={() => setFloodEngine('sentinel1')}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${floodEngine === 'sentinel1' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
@@ -105,6 +104,7 @@ export default function FloodImpactPanel({
 
         {/* Botão Simular */}
         <button
+          type="button"
           onClick={onSimulate}
           disabled={floodLoading}
           className="w-full py-2 rounded-lg font-medium text-sm bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center justify-center gap-2"
@@ -149,7 +149,10 @@ export default function FloodImpactPanel({
               </div>
             </div>
             <p className="text-[10px] text-slate-500">
-              Fontes: WorldPop 100m (2020) + ESA WorldCover (classe agrícola). Cálculo via GEE reduceRegion a 500m.
+              Fontes: WorldPop ~100 m (2020) + ESA WorldCover (classe agrícola). Cálculo de exposição a 100 m.
+            </p>
+            <p className="text-[10px] text-slate-500">
+              Resultado de triagem. Não substitui modelação hidráulica local nem avaliação de campo.
             </p>
           </>
         )}

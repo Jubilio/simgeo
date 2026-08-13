@@ -3,8 +3,16 @@ from unittest.mock import patch
 from django.test import SimpleTestCase
 from rest_framework.test import APIRequestFactory
 
+from simulation.services.cyclone_service import validate_cyclone_parameters
+from simulation.services.flood_impact_service import (
+    validate_flood_impact_parameters,
+)
 from simulation.services.malaria_service import validate_malaria_parameters
-from simulation.views import GEEMalariaSuitabilityView
+from simulation.views import (
+    GEECycloneView,
+    GEEFloodImpactView,
+    GEEMalariaSuitabilityView,
+)
 
 
 class MalariaParameterValidationTests(SimpleTestCase):
@@ -56,3 +64,75 @@ class MalariaSuitabilityViewTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("month", response.data["error"])
+
+
+class CycloneParameterValidationTests(SimpleTestCase):
+    def test_accepts_historical_event(self):
+        self.assertEqual(
+            validate_cyclone_parameters("2023-03-11", "2023-03-13", "wind"),
+            ("2023-03-11", "2023-03-13", "wind"),
+        )
+
+    def test_rejects_invalid_layer_and_reversed_dates(self):
+        with self.assertRaisesMessage(ValueError, "type"):
+            validate_cyclone_parameters("2023-03-11", "2023-03-13", "gust")
+        with self.assertRaisesMessage(ValueError, "anterior"):
+            validate_cyclone_parameters("2023-03-13", "2023-03-11", "rain")
+
+    def test_rejects_intervals_longer_than_30_days(self):
+        with self.assertRaisesMessage(ValueError, "30 dias"):
+            validate_cyclone_parameters("2023-03-01", "2023-03-31", "rain")
+
+
+class FloodImpactParameterValidationTests(SimpleTestCase):
+    def test_accepts_supported_glofas_return_period(self):
+        self.assertEqual(
+            validate_flood_impact_parameters("glofas", "75"),
+            ("glofas", 75, None, None),
+        )
+
+    def test_rejects_unsupported_glofas_return_period(self):
+        with self.assertRaisesMessage(ValueError, "Valores suportados"):
+            validate_flood_impact_parameters("glofas", 5)
+
+    def test_validates_sentinel1_dates(self):
+        self.assertEqual(
+            validate_flood_impact_parameters(
+                "sentinel1", 100, "2019-03-14", "2019-03-16"
+            ),
+            ("sentinel1", None, "2019-03-14", "2019-03-16"),
+        )
+        with self.assertRaisesMessage(ValueError, "obrigatórios"):
+            validate_flood_impact_parameters("sentinel1", 100)
+
+
+class NewSimulationViewValidationTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_cyclone_view_returns_400_for_invalid_date_range(self):
+        request = self.factory.get(
+            "/api/simulation/gee/cyclone/",
+            {
+                "start_date": "2023-03-13",
+                "end_date": "2023-03-11",
+                "type": "rain",
+            },
+        )
+
+        response = GEECycloneView.as_view()(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("anterior", response.data["error"])
+
+    def test_flood_impact_view_returns_400_for_invalid_return_period(self):
+        request = self.factory.post(
+            "/api/simulation/gee/flood-impact/",
+            {"engine": "glofas", "return_period": 5},
+            format="json",
+        )
+
+        response = GEEFloodImpactView.as_view()(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Valores suportados", response.data["error"])

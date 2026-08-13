@@ -10,7 +10,7 @@ Permitir a criação de cenários *what-if* para responder a questões operacion
 
 O sistema é construído sobre uma arquitetura moderna e open-source orientada a microserviços e dados geográficos:
 
-- **Frontend**: React (Vite) + TailwindCSS v4 + React-Leaflet
+- **Frontend**: React (Vite) + TailwindCSS v4 + Deck.gl
 - **Backend**: Python, Django, Django REST Framework (DRF)
 - **Base de Dados Espacial**: PostgreSQL + PostGIS
 - **Processamento Assíncrono**: Celery + Redis (Message Broker)
@@ -19,8 +19,8 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 ## 🧩 Módulos Principais
 
 1. **Gestão de Dados e Base de Dados Espacial**: Visualização e query de limites administrativos (Província, Distrito, Posto), Demografia e Infraestrutura Crítica (escolas, hospitais, estradas).
-2. **Motor de Simulação de Cheias (Flood Engine)**: Simulação com base em precipitação, relevo (DEM), declive e rede de drenagem.
-3. **Motor de Simulação de Ciclones (Cyclone Engine)**: Buffer de trajetórias, wind fields e impacto espacial.
+2. **Motor de Cheias (Flood Engine)**: Triagem de hazard com profundidade GLOFAS por período de retorno ou deteção de evento Sentinel-1, cruzada com população e agricultura expostas.
+3. **Módulo de Ciclones**: Visualização retrospetiva da precipitação acumulada GPM IMERG e do máximo horário do vento a 10 m no ERA5-Land.
 4. **Módulo Analítico e de Vulnerabilidade**: Integração de índices de pobreza e segurança alimentar (IPC).
 5. **Dashboard Multi-Risco**: Cálculo em tempo real: `Risco = Perigo (Hazard) × Exposição × Vulnerabilidade`.
 6. **Aptidão Ambiental para a Malária (Moçambique)**: Índice anual ou mensal no Google Earth Engine, combinando temperatura, precipitação, água superficial, vegetação e elevação. O produto representa aptidão ambiental e não carga da doença. Consulte a [metodologia e limitações](docs/MALARIA_SUITABILITY.md).
@@ -29,21 +29,17 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 
 ## ✨ Novas Funcionalidades
 
-### 🤖 Assistente IA (AI Chatbot)
-Integração de um assistente de inteligência artificial que permite aos utilizadores fazer perguntas naturais sobre os dados geográficos e riscos de desastres. O chatbot:
-- **Consultas em Linguagem Natural**: Faça perguntas como *"Quais são os hospitais em Sofala que estão na zona de risco de inundação?"*
-- **Integração com Dados Espaciais**: Liga-se diretamente à base de dados PostGIS para acesso a informações sobre infraestruturas, limites administrativos e camadas de perigo.
-- **Resposta Contextualizada**: Fornece análises e recomendações baseadas em cenários de risco multi-hazard.
-- **Interface Conversacional**: Modal/sidebar no frontend React para interação fluida.
+### 🤖 Protótipo do Assistente IA
+O frontend inclui uma interface conversacional e o backend devolve respostas e ações cartográficas demonstrativas, como centrar o mapa ou criar um buffer. A ligação a um LLM e as consultas contextuais ao PostGIS permanecem planeadas; o módulo atual não deve ser apresentado como um assistente analítico operacional.
 
 Para mais detalhes, consulte [simgeo-chatbot skill](.github/skills/simgeo-chatbot/SKILL.md).
 
 ### 📁 Processamento de Uploads Espaciais
-Novo sistema robusto para importação de dados geográficos personalizados com suporte GDAL:
+Importação de infraestruturas geográficas personalizadas com suporte GDAL:
 - **Formatos Suportados**: Shapefiles (`.zip`), GeoJSON (`.geojson`)
-- **Processamento Seguro**: Validação e extração segura de ficheiros compactados
+- **Processamento Seguro**: limites de tamanho, bloqueio de path traversal e validação dos componentes do Shapefile
 - **Integração PostGIS**: Conversão automática de geometrias para a base de dados spatial
-- **Mapeamento de Camadas**: Suporte para diferentes tipos de camadas (infraestrutura, limites administrativos)
+- **Mapeamento de Camadas**: nesta versão, apenas infraestruturas
 - **Gestão de Ficheiros**: Retenção a longo prazo para auditoria e download
 
 Para mais detalhes, consulte [spatial-uploads skill](.github/skills/spatial-uploads/SKILL.md).
