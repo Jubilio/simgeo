@@ -24,11 +24,23 @@ CYCLONE_EVENTS = {
 def get_cyclone_tiles(start_date, end_date, layer_type='rain'):
     """
     Retorna os tiles GEE para simulação de ciclones:
-    - 'rain': Precipitação total acumulada (GPM IMERG)
-    - 'wind': Máxima rajada de vento (ERA5)
+    - 'rain': Precipitação máxima diária (GPM IMERG Daily)
+    - 'wind': Máxima velocidade do vento (ERA5 Daily, componentes U+V)
     """
     if not initialize_gee():
         raise Exception("Google Earth Engine não pôde ser inicializado.")
+
+    # Validar intervalo de datas (máx 30 dias para não travar o servidor)
+    import datetime
+    try:
+        d_start = datetime.date.fromisoformat(start_date)
+        d_end = datetime.date.fromisoformat(end_date)
+        if (d_end - d_start).days > 30:
+            raise ValueError("O intervalo máximo permitido é de 30 dias.")
+        if d_end < d_start:
+            raise ValueError("A data de início deve ser anterior à data de fim.")
+    except ValueError as ve:
+        raise ve
 
     moz = get_mozambique_geometry()
     
@@ -39,23 +51,18 @@ def get_cyclone_tiles(start_date, end_date, layer_type='rain'):
         end = ee.Date(end_date).advance(1, 'day')
         
         if layer_type == 'rain':
-            # GPM IMERG Half-hourly precipitation (convertido para mm/h e acumulado)
-            # O dataset GPM_L3/IMERG_V06 (calibrado)
+            # GPM IMERG V06 (30-min) -> .max() evita sum() sobre 100+ imagens e é mais rápido
             dataset = ee.ImageCollection('NASA/GPM_L3/IMERG_V06') \
                 .filterDate(start, end) \
                 .select('precipitationCal')
             
-            # Somar a precipitação no período (como cada imagem é 30min, sum() daria mm/h * 30min?)
-            # O IMERG V06 'precipitationCal' é medido em mm/hr. Para obter mm total num período de meia hora, dividimos por 2.
-            # Multiplicar por 0.5 e somar tudo.
-            total_rain = dataset.map(lambda img: img.multiply(0.5)).sum()
+            # Pico de precipitação (mm/h) no período — representa a intensidade máxima da chuva
+            peak_rain = dataset.max()
+            img_to_vis = peak_rain.clip(moz)
             
-            img_to_vis = total_rain.clip(moz)
-            
-            # Heatmap de precipitação: transparente até 20mm, depois azul->ciano->verde->amarelo->vermelho (chuva extrema)
             vis_params = {
-                'min': 20,
-                'max': 300, 
+                'min': 5,
+                'max': 50,
                 'palette': ['#e0f3db', '#a8ddb5', '#4eb3d3', '#2b8cbe', '#0868ac', '#084081', '#ffc107', '#ff5722', '#b30000']
             }
             

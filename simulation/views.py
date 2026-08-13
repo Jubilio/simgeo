@@ -18,6 +18,7 @@ from .services.malaria_service import (
 )
 from .services.gaul_service import get_gaul_admin_tiles
 from .services.cyclone_service import get_cyclone_tiles
+from .services.flood_impact_service import get_flood_impact
 
 class GEEFloodSimulationView(APIView):
     """
@@ -237,5 +238,23 @@ class GEECycloneView(APIView):
         try:
             layer_data = get_cyclone_tiles(start_date, end_date, layer_type)
             return Response({"status": "success", "gee_layer": layer_data})
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+
+
+class GEEFloodImpactView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        engine = request.data.get('engine', 'glofas')
+        return_period = request.data.get('return_period', 100)
+        s1_start = request.data.get('s1_start')
+        s1_end = request.data.get('s1_end')
+        
+        try:
+            result = get_flood_impact(engine, return_period, s1_start, s1_end)
+            return Response({"status": "success", "data": result})
         except Exception as e:
             return Response({"error": str(e)}, status=500)

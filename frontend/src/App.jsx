@@ -9,6 +9,7 @@ import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
 import { useAdminBoundaryLayers, AdminBoundaryPanel } from './components/AdminBoundaryPanel';
 import CyclonePanel from './components/CyclonePanel';
+import FloodImpactPanel from './components/FloodImpactPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'http://localhost:8000/api/';
@@ -26,8 +27,7 @@ const MALARIA_YEARS = Array.from(
 const INITIAL_VIEW_STATE = {
   longitude: 34.84,
   latitude: -19.83,
-  zoom: 1.5, // Zoom mais afastado para ver o globo
-  pitch: 30,
+  zoom: 1.5,
   bearing: 0
 };
 
@@ -77,6 +77,16 @@ export default function App() {
   const [cycloneStart, setCycloneStart] = useState('2019-03-14'); // Idai defaults
   const [cycloneEnd, setCycloneEnd] = useState('2019-03-16');
   const [cycloneLayerType, setCycloneLayerType] = useState('rain');
+
+  // Flood Impact Simulation
+  const [showFloodImpactPanel, setShowFloodImpactPanel] = useState(false);
+  const [floodEngine, setFloodEngine] = useState('glofas');
+  const [floodReturnPeriod, setFloodReturnPeriod] = useState(100);
+  const [floodS1Start, setFloodS1Start] = useState('2019-03-14');
+  const [floodS1End, setFloodS1End] = useState('2019-03-16');
+  const [floodImpactTileUrl, setFloodImpactTileUrl] = useState(null);
+  const [floodStats, setFloodStats] = useState(null);
+  const [floodLoading, setFloodLoading] = useState(false);
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
@@ -143,6 +153,7 @@ export default function App() {
     cycloneStart,
     cycloneEnd,
     cycloneLayerType,
+    floodImpactTileUrl,
     setErrorMessage: setGeeError
   });
 
@@ -756,8 +767,16 @@ export default function App() {
              >
                + Novo Cenário
              </button>
+             <button 
+               onClick={() => setShowFloodImpactPanel(true)}
+               className="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-cyan-500/20 border border-cyan-500/20 flex items-center gap-2"
+             >
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
+               Impacto Cheias
+             </button>
           </div>
         </div>
+
 
         {/* Map Container */}
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
@@ -810,6 +829,45 @@ export default function App() {
           setCycloneEnd={setCycloneEnd}
           cycloneLayerType={cycloneLayerType}
           setCycloneLayerType={setCycloneLayerType}
+        />
+      )}
+
+      {/* Painel de Flood Impact */}
+      {showFloodImpactPanel && (
+        <FloodImpactPanel
+          onClose={() => setShowFloodImpactPanel(false)}
+          floodEngine={floodEngine}
+          setFloodEngine={setFloodEngine}
+          floodReturnPeriod={floodReturnPeriod}
+          setFloodReturnPeriod={setFloodReturnPeriod}
+          floodS1Start={floodS1Start}
+          setFloodS1Start={setFloodS1Start}
+          floodS1End={floodS1End}
+          setFloodS1End={setFloodS1End}
+          floodStats={floodStats}
+          floodLoading={floodLoading}
+          onSimulate={async () => {
+            setFloodLoading(true);
+            setFloodStats(null);
+            setFloodImpactTileUrl(null);
+            try {
+              const body = {
+                engine: floodEngine,
+                return_period: floodReturnPeriod,
+                s1_start: floodEngine === 'sentinel1' ? floodS1Start : undefined,
+                s1_end: floodEngine === 'sentinel1' ? floodS1End : undefined,
+              };
+              const res = await axios.post(`${API_URL}simulation/gee/flood-impact/`, body);
+              const d = res.data.data;
+              setFloodImpactTileUrl(d.gee_layer.tile_url);
+              setFloodStats(d.stats);
+            } catch(err) {
+              console.error('Flood Impact error:', err);
+              setGeeError('Erro ao simular impacto: ' + (err.response?.data?.error || err.message));
+            } finally {
+              setFloodLoading(false);
+            }
+          }}
         />
       )}
 

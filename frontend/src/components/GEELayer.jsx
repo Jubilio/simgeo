@@ -45,6 +45,7 @@ export default function useGEELayer({
   activeGroundwater, gwYear, gwMonth,
   activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
   activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType,
+  floodImpactTileUrl,
   setErrorMessage 
 }) {
   const [floodTileUrl, setFloodTileUrl] = useState(null);
@@ -124,7 +125,10 @@ export default function useGEELayer({
       if (abortRefs.current.malaria) abortRefs.current.malaria.abort();
       setMalariaTileUrl(null);
     }
+  }, [activeMalaria, malariaStartYear, malariaEndYear, malariaMonth]);
 
+  // Cyclone has its own useEffect so it ONLY fires when cyclone-specific props change
+  useEffect(() => {
     if (activeCyclone) {
       const params = new URLSearchParams({
         start_date: cycloneStart,
@@ -136,14 +140,7 @@ export default function useGEELayer({
       if (abortRefs.current.cyclone) abortRefs.current.cyclone.abort();
       setCycloneTileUrl(null);
     }
-  }, [
-    activeFlood, waterLevel,
-    activeLULC,
-    activeLithology, lithologyType,
-    activeGroundwater, gwYear, gwMonth,
-    activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
-    activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType
-  ]);
+  }, [activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType]);
 
   const layers = [
     makeGEETileLayer('gee-flood-layer', activeFlood ? floodTileUrl : null, 0.8),
@@ -152,6 +149,7 @@ export default function useGEELayer({
     makeGEETileLayer('gee-groundwater-layer', activeGroundwater ? groundwaterTileUrl : null, 0.65),
     makeGEETileLayer('gee-malaria-layer', activeMalaria ? malariaTileUrl : null, 0.8),
     makeGEETileLayer('gee-cyclone-layer', activeCyclone ? cycloneTileUrl : null, 0.8),
+    makeGEETileLayer('gee-flood-impact-layer', floodImpactTileUrl, 0.75),
   ].filter(Boolean);
 
   return layers;
