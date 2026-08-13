@@ -1,5 +1,6 @@
 import ee
 from georisksim.gee_auth import initialize_gee
+from .mozambique_geometry import get_mozambique_geometry
 
 def get_flood_simulation_tiles(water_level=2.0):
     """
@@ -13,25 +14,19 @@ def get_flood_simulation_tiles(water_level=2.0):
         raise Exception("Google Earth Engine não pôde ser inicializado.")
 
     try:
-        # Carrega o DEM Global da NASA (SRTM Digital Elevation Data 30m)
         dem = ee.Image('USGS/SRTMGL1_003')
+        moz = get_mozambique_geometry()
 
-        # Cria uma máscara para onde a elevação é <= water_level
-        # Os valores de elevação do SRTM para oceanos/água já são 0 ou < 0 em muitos casos,
-        # mas queremos ver a expansão da água acima da costa (ex: 2 metros acima do nível do mar)
-        flood_mask = dem.lte(water_level)
-
-        # Remove áreas que não estão inundadas (transparente)
+        # Clipar o DEM a Moçambique antes de calcular a inundação
+        flood_mask = dem.clip(moz).lte(water_level)
         flooded_area = flood_mask.updateMask(flood_mask)
 
-        # Paleta visual para a água (azul vibrante)
         vis_params = {
             'min': 1,
             'max': 1,
-            'palette': ['00FFFF'] # Cyan/Azul claro para se destacar no mapa escuro
+            'palette': ['00FFFF']
         }
 
-        # Obtém os parâmetros do Tile Server do Google (MapID e Token)
         map_id_dict = ee.Image(flooded_area).getMapId(vis_params)
         
         return {
@@ -102,39 +97,23 @@ def get_lulc_tiles():
         raise Exception("Google Earth Engine não pôde ser inicializado.")
 
     try:
-        # Load ESA WorldCover (2021) v200
-        dataset = ee.ImageCollection('ESA/WorldCover/v200').first()
-        lulc = dataset.select('Map')
+        moz = get_mozambique_geometry()
 
-        # Remap to custom classes to simplify the map:
-        # ESA: 10(Tree), 20(Shrub), 30(Grass), 40(Crop), 50(Built), 60(Bare), 70(Snow), 80(Water), 90(Wetland), 95(Mangrove), 100(Moss)
-        # Custom: 1(Veg), 2(Agri), 3(Bare), 4(Water), 5(Urban)
+        # ESA WorldCover 2021 - clipado a Moçambique
+        dataset = ee.ImageCollection('ESA/WorldCover/v200').first()
+        lulc = dataset.select('Map').clip(moz)
+
         from_list = [10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 100]
         to_list =   [1,  1,  1,  2,  5,  3,  3,  4,  4,  1,  1]
-        
         remapped = lulc.remap(from_list, to_list)
 
-        # Palette colors
-        # 1: Vegetation (Dark Green - 006400)
-        # 2: Agriculture (Light Green - 90EE90)
-        # 3: Bare Soil (Yellow - FFFF00)
-        # 4: Water (Cyan - 00FFFF)
-        # 5: Urban (Grey - 808080)
-        
         vis_params = {
             'min': 1,
             'max': 5,
-            'palette': [
-                '006400', # 1 - Veg
-                '90EE90', # 2 - Agri
-                'FFFF00', # 3 - Bare
-                '00FFFF', # 4 - Water
-                '808080', # 5 - Urban
-            ]
+            'palette': ['006400', '90EE90', 'FFFF00', '00FFFF', '808080']
         }
         
         map_id_dict = remapped.getMapId(vis_params)
-        
         return {
             'mapid': map_id_dict['mapid'],
             'token': map_id_dict['token'],
@@ -198,14 +177,15 @@ def get_lithology_tiles(mineral_type='kaolinite'):
 
         index_img = aster_cor.expression(expressions[mineral_type])
 
-        # Mapa de Calor (Heatmap) Viridis
+        # Clipar a Moçambique e visualizar
+        moz = get_mozambique_geometry()
         vis_params = {
             'min': 0.8,
-            'max': 1.3, # Ratios costumam andar à volta do 1.0
+            'max': 1.3,
             'palette': ['440154', '414487', '2a788e', '22a884', '7ad151', 'fde725'] 
         }
         
-        map_id_dict = index_img.getMapId(vis_params)
+        map_id_dict = index_img.clip(moz).getMapId(vis_params)
         
         return {
             'mapid': map_id_dict['mapid'],
@@ -231,6 +211,7 @@ def get_groundwater_tiles(year, month):
         raise Exception("Google Earth Engine não pôde ser inicializado.")
 
     try:
+        moz = get_mozambique_geometry()
         start = ee.Date.fromYMD(year, month, 1)
         end = start.advance(1, "month")
         
@@ -240,6 +221,7 @@ def get_groundwater_tiles(year, month):
             .filterDate(start, end)
             .mean()
             .rename("Groundwater")
+            .clip(moz)  # Clipar a Moçambique
         )
         
         vis_params = {

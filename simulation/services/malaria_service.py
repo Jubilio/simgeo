@@ -9,6 +9,7 @@ from datetime import date
 import ee
 
 from georisksim.gee_auth import initialize_gee
+from .mozambique_geometry import get_mozambique_geometry
 
 
 DEFAULT_START_YEAR = 2020
@@ -65,12 +66,9 @@ def validate_malaria_parameters(start_year, end_year, month=DEFAULT_MONTH):
     return start_year, end_year, month
 
 
+# _mozambique_geometry() mantida por compatibilidade — delega para o helper partilhado
 def _mozambique_geometry():
-    return (
-        ee.FeatureCollection("USDOS/LSIB_SIMPLE/2017")
-        .filter(ee.Filter.eq("country_na", "Mozambique"))
-        .geometry()
-    )
+    return get_mozambique_geometry()
 
 
 def _filter_period(collection, start_year, end_year, month):

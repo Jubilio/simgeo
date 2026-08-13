@@ -16,6 +16,7 @@ from .services.malaria_service import (
     DEFAULT_START_YEAR,
     get_malaria_suitability_tiles,
 )
+from .services.gaul_service import get_gaul_admin_tiles
 
 class GEEFloodSimulationView(APIView):
     """
@@ -185,3 +186,40 @@ class GEEMalariaSuitabilityView(APIView):
                 {"error": error_message},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+
+class GEEAdminBoundariesView(APIView):
+    """
+    Serve limites administrativos FAO GAUL 2015 via GEE.
+    Suporta level1 (Províncias) e level2 (Distritos).
+    Permite filtrar por nome e por país.
+    
+    Parâmetros:
+        level       : 'level1' | 'level2'  (default: level1)
+        name_filter : string parcial para filtrar pelo nome do admin
+        country     : nome do país em inglês (default: Mozambique)
+    """
+
+    def get(self, request):
+        level = request.query_params.get('level', 'level1')
+        name_filter = request.query_params.get('name_filter', '')
+        country = request.query_params.get('country', 'Mozambique')
+
+        try:
+            gee_data = get_gaul_admin_tiles(
+                level=level,
+                name_filter=name_filter,
+                country_filter=country,
+            )
+            return Response({'status': 'success', 'gee_layer': gee_data})
+
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            error_msg = str(e)
+            if 'inicializado' in error_msg.lower() or 'autenti' in error_msg.lower():
+                return Response(
+                    {'error': 'Google Earth Engine não autenticado.', 'detail': error_msg},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            return Response({'error': error_msg}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

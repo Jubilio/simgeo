@@ -7,6 +7,7 @@ import { BitmapLayer } from '@deck.gl/layers';
 import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
+import { useAdminBoundaryLayers, AdminBoundaryPanel } from './components/AdminBoundaryPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const API_URL = 'http://localhost:8000/api/';
@@ -88,6 +89,10 @@ export default function App() {
   const [waterLevel, setWaterLevel] = useState(2.0);
   const [geeError, setGeeError] = useState(null);
 
+  // Limites Administrativos FAO GAUL
+  const [adminActiveLevels, setAdminActiveLevels] = useState([]);
+  const [adminNameFilter, setAdminNameFilter] = useState('');
+
   // Tooltip UI
   const [tooltipInfo, setTooltipInfo] = useState(null);
 
@@ -127,6 +132,13 @@ export default function App() {
     malariaEndYear,
     malariaMonth,
     setErrorMessage: setGeeError
+  });
+
+  const { layers: adminBoundaryLayers } = useAdminBoundaryLayers({
+    activeLevels: adminActiveLevels,
+    nameFilter: adminNameFilter,
+    country: 'Mozambique',
+    setErrorMessage: setGeeError,
   });
 
   // Função para buscar dados da série temporal GLDAS
@@ -293,18 +305,15 @@ export default function App() {
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-2 px-3">Camadas Base</div>
           
-          <button 
-            onClick={() => setShowBoundaries(!showBoundaries)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showBoundaries ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
-          >
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
-              Limites Admin.
-            </div>
-            <div className={`w-8 h-4 rounded-full transition-colors relative ${showBoundaries ? 'bg-indigo-500' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showBoundaries ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showBoundaries ? 'translateX(14px)' : 'translateX(0)' }}></div>
-            </div>
-          </button>
+          {/* === Limites Administrativos FAO GAUL 2015 === */}
+          <div className="px-1 mb-2">
+            <AdminBoundaryPanel
+              activeLevels={adminActiveLevels}
+              setActiveLevels={setAdminActiveLevels}
+              nameFilter={adminNameFilter}
+              setNameFilter={setAdminNameFilter}
+            />
+          </div>
 
           <button 
             onClick={() => setShowInfrastructure(!showInfrastructure)}
@@ -318,8 +327,9 @@ export default function App() {
               <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showInfrastructure ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showInfrastructure ? 'translateX(14px)' : 'translateX(0)' }}></div>
             </div>
           </button>
-          
+
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-6 px-3 border-t border-slate-800/50 pt-4">Simuladores (GEE)</div>
+
 
           <div className="px-3">
             <button 
@@ -572,27 +582,7 @@ export default function App() {
                 </button>
               </div>
             )}
-            
-            {simGEEFlood && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
-                <label className="text-xs text-slate-400 flex justify-between mb-2">
-                  <span>Nível da Água (m)</span>
-                  <span className="font-mono text-cyan-400 font-bold">{waterLevel}m</span>
-                </label>
-                <input 
-                  type="range" 
-                  min="0" 
-                  max="15" 
-                  step="0.5"
-                  value={waterLevel}
-                  onChange={(e) => setWaterLevel(parseFloat(e.target.value))}
-                  className="w-full accent-cyan-500 bg-slate-800 rounded-lg appearance-none h-2"
-                />
-                <p className="text-[10px] text-slate-500 mt-3 leading-relaxed">
-                  Utiliza o DEM SRTM via Google Earth Engine para simular a elevação do nível do mar em tempo real.
-                </p>
-              </div>
-            )}
+
             
             {/* Secção de Administração */}
             <div className="pt-4 mt-2 border-t border-slate-800/50 mb-4">
@@ -762,7 +752,7 @@ export default function App() {
             onViewStateChange={({viewState}) => setViewState(viewState)}
             controller={true}
             onClick={handleMapClick}
-            layers={[baseMapLayer, ...geeLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Vectors
+            layers={[baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Admin Boundaries -> Vectors
           >
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (

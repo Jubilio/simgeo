@@ -10,6 +10,7 @@ from simulation.views import (
     GEELithologyView,
     GEELULCView,
     GEEMalariaSuitabilityView,
+    GEEAdminBoundariesView,
 )
 
 router = DefaultRouter()
@@ -33,6 +34,7 @@ class APIRootView(APIView):
                 'simulation_gee_groundwater_map': request.build_absolute_uri('simulation/gee/groundwater/map/'),
                 'simulation_gee_groundwater_ts': request.build_absolute_uri('simulation/gee/groundwater/timeseries/'),
                 'simulation_gee_malaria_suitability': request.build_absolute_uri('simulation/gee/malaria-suitability/'),
+                'simulation_gee_admin_boundaries': request.build_absolute_uri('simulation/gee/admin-boundaries/'),
             }
         })
 
@@ -44,6 +46,7 @@ urlpatterns = [
     path('simulation/gee/groundwater/map/', GEEGroundwaterMapView.as_view(), name='gee-groundwater-map'),
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
     path('simulation/gee/malaria-suitability/', GEEMalariaSuitabilityView.as_view(), name='gee-malaria-suitability'),
+    path('simulation/gee/admin-boundaries/', GEEAdminBoundariesView.as_view(), name='gee-admin-boundaries'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('agent/', include('ai_agent.urls')),
     path('', include(router.urls)),
