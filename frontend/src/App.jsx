@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import axios from 'axios';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView, MapView } from '@deck.gl/core';
@@ -291,7 +291,7 @@ export default function App() {
   };
 
   // Base Map Layer nativo do Deck.gl (Raster)
-  const baseMapLayer = new TileLayer({
+  const baseMapLayer = useMemo(() => new TileLayer({
     id: 'carto-basemap',
     data: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
     minZoom: 0,
@@ -308,31 +308,43 @@ export default function App() {
         bounds: [west, south, east, north]
       });
     }
-  });
+  }), []);
+
+  const activeLayerCount = [
+    showInfrastructure,
+    simGEEFlood,
+    showLULC,
+    showLithology,
+    showGroundwater,
+    showMalaria,
+    activeCyclone,
+    Boolean(floodImpactTileUrl),
+  ].filter(Boolean).length + adminActiveLevels.length;
 
   return (
     <>
-    <div className="flex h-screen w-full bg-slate-950 text-slate-100 font-sans overflow-hidden">
+    <div className="simgeo-shell flex h-screen w-full text-slate-100 font-sans overflow-hidden">
       
       {/* Sidebar Principal */}
-      <aside className="w-72 bg-slate-900/80 backdrop-blur-xl border-r border-slate-800 flex flex-col shadow-2xl z-20">
-        <div className="p-6 border-b border-slate-800/50">
+      <aside className="simgeo-sidebar flex flex-col z-20">
+        <div className="simgeo-brand">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="simgeo-brand-mark">
+              <svg className="w-6 h-6 text-white relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
             </div>
             <div>
-              <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400 tracking-tight">SimGeo</h1>
-              <p className="text-xs text-slate-400 font-medium tracking-wider uppercase">DSS Platform</p>
+              <h1 className="simgeo-brand-name">SimGeo</h1>
+              <p className="simgeo-brand-tagline">Decision intelligence</p>
             </div>
           </div>
+          <p className="simgeo-brand-note">Dados da Terra transformados em decisões mais humanas e resilientes.</p>
         </div>
 
         {/* Menu Items */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-2 px-3">Camadas Base</div>
+        <nav className="simgeo-sidebar-scroll flex-1 p-4 space-y-2 overflow-y-auto" aria-label="Camadas e simuladores">
+          <div className="simgeo-section-label">Contexto territorial</div>
           
           {/* === Limites Administrativos FAO GAUL 2015 === */}
           <div className="px-1 mb-2">
@@ -346,36 +358,34 @@ export default function App() {
 
           <button 
             onClick={() => setShowInfrastructure(!showInfrastructure)}
-            className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all border ${showInfrastructure ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+            aria-pressed={showInfrastructure}
+            className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${showInfrastructure ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
           >
             <div className="flex items-center gap-3">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
               Infraestrutura
             </div>
-            <div className={`w-8 h-4 rounded-full transition-colors relative ${showInfrastructure ? 'bg-emerald-500' : 'bg-slate-700'}`}>
-              <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showInfrastructure ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showInfrastructure ? 'translateX(14px)' : 'translateX(0)' }}></div>
-            </div>
+            <span className="simgeo-switch" aria-hidden="true" />
           </button>
 
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 mt-6 px-3 border-t border-slate-800/50 pt-4">Simuladores (GEE)</div>
+          <div className="simgeo-section-label mt-6 border-t border-slate-800/50 pt-4">Laboratório de cenários</div>
 
 
-          <div className="px-3">
+          <div className="simgeo-layer-list">
             <button 
               onClick={() => setSimGEEFlood(!simGEEFlood)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${simGEEFlood ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+              aria-pressed={simGEEFlood}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${simGEEFlood ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 Inundação Costeira
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${simGEEFlood ? 'bg-cyan-500' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${simGEEFlood ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: simGEEFlood ? 'translateX(14px)' : 'translateX(0)' }}></div>
-              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
             </button>
             
             {simGEEFlood && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+              <div className="simgeo-control-card transition-all">
                 <label className="text-xs text-slate-400 flex justify-between mb-2">
                   <span>Nível da Água (m)</span>
                   <span className="font-mono text-cyan-400 font-bold">{waterLevel}m</span>
@@ -398,19 +408,18 @@ export default function App() {
             {/* Aptidão Ambiental para a Malária */}
             <button
               onClick={() => setShowMalaria(!showMalaria)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showMalaria ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+              aria-pressed={showMalaria}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${showMalaria ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4M7 7l10 10m0-10L7 17"></path></svg>
                 Aptidão para Malária
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${showMalaria ? 'bg-rose-500' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showMalaria ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showMalaria ? 'translateX(14px)' : 'translateX(0)' }}></div>
-              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
             </button>
 
             {showMalaria && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-rose-500/20 mt-2 mb-4 transition-all">
+              <div className="simgeo-control-card transition-all">
                 <div className="flex gap-2 mb-3">
                   <div className="flex-1 min-w-0">
                     <label className="text-[10px] text-slate-400 block mb-1">De</label>
@@ -474,19 +483,18 @@ export default function App() {
 
             <button 
               onClick={() => setShowLULC(!showLULC)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showLULC ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+              aria-pressed={showLULC}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${showLULC ? 'bg-fuchsia-500/20 text-fuchsia-300 border-fuchsia-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                 Uso do Solo (LULC)
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${showLULC ? 'bg-fuchsia-500' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showLULC ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showLULC ? 'translateX(14px)' : 'translateX(0)' }}></div>
-              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
             </button>
             
             {showLULC && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+              <div className="simgeo-control-card transition-all">
                 <h4 className="text-xs font-semibold text-slate-300 mb-2">Legenda (ESA WorldCover)</h4>
                 <div className="space-y-1.5 text-xs text-slate-400">
                   <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm shadow-sm" style={{backgroundColor: '#006400'}}></div> Vegetação</div>
@@ -500,19 +508,18 @@ export default function App() {
 
             <button 
               onClick={() => setShowLithology(!showLithology)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showLithology ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+              aria-pressed={showLithology}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${showLithology ? 'bg-orange-500/20 text-orange-300 border-orange-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
                 Análise Litológica (ASTER)
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${showLithology ? 'bg-orange-500' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showLithology ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showLithology ? 'translateX(14px)' : 'translateX(0)' }}></div>
-              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
             </button>
             
             {showLithology && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+              <div className="simgeo-control-card transition-all">
                 <label className="text-xs text-slate-400 flex justify-between mb-2">
                   <span>Índice Mineral</span>
                 </label>
@@ -541,19 +548,18 @@ export default function App() {
             {/* GLDAS Águas Subterrâneas */}
             <button 
               onClick={() => setShowGroundwater(!showGroundwater)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 mb-3 rounded-lg transition-all border ${showGroundwater ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 border-transparent'}`}
+              aria-pressed={showGroundwater}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${showGroundwater ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
             >
               <div className="flex items-center gap-3 text-sm">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                 Águas Subterrâneas (GLDAS)
               </div>
-              <div className={`w-8 h-4 rounded-full transition-colors relative ${showGroundwater ? 'bg-blue-500' : 'bg-slate-700'}`}>
-                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${showGroundwater ? 'left-4.5 right-0.5' : 'left-0.5'}`} style={{ transform: showGroundwater ? 'translateX(14px)' : 'translateX(0)' }}></div>
-              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
             </button>
             
             {showGroundwater && (
-              <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800 mt-2 mb-4 transition-all">
+              <div className="simgeo-control-card transition-all">
                 <div className="flex gap-2 mb-3">
                   <div className="flex-1">
                     <label className="text-[10px] text-slate-400 block mb-1">Mês</label>
@@ -589,8 +595,8 @@ export default function App() {
                     </div>
                   ) : (
                     <ul className="space-y-1">
-                      {gwCustomPoints.map((pt, idx) => (
-                        <li key={idx} className="text-[10px] text-slate-300 flex justify-between bg-slate-800/80 p-1.5 rounded">
+                      {gwCustomPoints.map(pt => (
+                        <li key={pt.name} className="text-[10px] text-slate-300 flex justify-between bg-slate-800/80 p-1.5 rounded">
                           <span className="font-medium text-blue-300">{pt.name}</span>
                           <span className="text-slate-500">[{pt.lng}, {pt.lat}]</span>
                         </li>
@@ -615,11 +621,8 @@ export default function App() {
             
             {/* Secção de Administração */}
             <div className="pt-4 mt-2 border-t border-slate-800/50 mb-4">
-              <h3 className="text-xs font-semibold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                Administração
-              </h3>
-              <div className="bg-slate-900/50 p-3 rounded-lg border border-slate-800">
+              <h3 className="simgeo-section-label">Gestão de dados</h3>
+              <div className="simgeo-control-card">
                 <label className="text-[10px] text-slate-400 block mb-1">Carregar Dados Espaciais (.zip/.geojson)</label>
                 <p className="text-[10px] text-slate-500 mb-2">Camada: infraestruturas</p>
                 <input 
@@ -658,51 +661,38 @@ export default function App() {
         </nav>
 
         {/* Backend Status Card */}
-        <div className="p-4 border-t border-slate-800/50">
-          <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800 shadow-inner">
-            <h3 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
-              Django API Status
-            </h3>
-            
-            {loading ? (
-              <div className="flex items-center gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></div>
-                <span className="text-sm text-yellow-400">Conectando...</span>
+        <div className="simgeo-sidebar-footer">
+          <div className="simgeo-api-card">
+            <div>
+              <div className="text-[9px] uppercase tracking-[0.14em] text-slate-500 font-semibold">Estado do sistema</div>
+              <div className="simgeo-api-status mt-1.5">
+                <span className={`simgeo-status-dot ${loading ? '' : error ? 'is-offline' : 'is-online'}`} />
+                <span>{loading ? 'A conectar…' : error ? 'API indisponível' : 'Todos os sistemas online'}</span>
               </div>
-            ) : error ? (
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"></div>
-                  <span className="text-sm text-rose-400 font-medium">Desconectado</span>
-                </div>
-                <p className="text-xs text-rose-500/80 font-mono bg-rose-500/10 p-2 rounded">{error}</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
-                  <span className="text-sm text-emerald-400 font-medium">Conectado</span>
-                </div>
-              </div>
-            )}
+            </div>
+            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" /></svg>
           </div>
+          {error && <p className="mt-2 px-1 text-[9px] leading-relaxed text-rose-300/75">{error}</p>}
         </div>
       </aside>
 
       {/* Main Content Area (Map) */}
-      <main className="flex-1 relative bg-[#020617]"> {/* Fundo do espaço sideral */}
+      <main className="simgeo-map-stage flex-1 relative"> {/* Fundo do espaço sideral */}
         {/* Navbar superior com Blur */}
-        <div className="absolute top-0 left-0 right-0 h-16 bg-slate-900/60 backdrop-blur-md z-[1000] border-b border-white/5 flex items-center justify-between px-6 pointer-events-none">
-          <div className="flex items-center gap-4">
-             <div className="px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-xs font-medium text-slate-300 pointer-events-auto shadow-lg">
-                🌍 SimGeo - Moçambique
+        <div className="simgeo-topbar absolute z-[1000] flex items-center justify-between pointer-events-none">
+          <div className="simgeo-location-chip pointer-events-auto">
+             <div className="simgeo-location-icon">
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 21s7-4.35 7-11a7 7 0 10-14 0c0 6.65 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>
+             </div>
+             <div className="simgeo-location-copy">
+               <span>Moçambique</span>
+               <small>Centro de decisão nacional</small>
              </div>
           </div>
           
           {/* Barra de Pesquisa */}
-          <div className="relative pointer-events-auto">
-            <div className="flex items-center bg-slate-800/80 border border-slate-700 rounded-lg px-3 py-2 gap-2 shadow-lg min-w-[320px]">
+          <div className="simgeo-search relative pointer-events-auto">
+            <div className="simgeo-search-field flex items-center px-3 py-2 gap-2">
               <svg className="w-4 h-4 text-slate-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               <input 
                 type="text" 
@@ -710,18 +700,19 @@ export default function App() {
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
                 className="bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none w-full"
+                aria-label="Pesquisar infraestruturas e locais"
               />
               {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-slate-500 hover:text-white">
+                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-slate-500 hover:text-white" aria-label="Limpar pesquisa">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               )}
             </div>
             {searchResults.length > 0 && (
-              <div className="absolute top-full mt-1 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-lg shadow-2xl overflow-hidden max-h-64 overflow-y-auto">
+              <div className="simgeo-search-results absolute top-full left-0 right-0 backdrop-blur-xl border overflow-hidden max-h-64 overflow-y-auto">
                 {searchResults.map((r, idx) => (
                   <button
-                    key={idx}
+                    key={r.id || r.properties?.id || `${r.properties?.name || 'resultado'}-${idx}`}
                     onClick={() => {
                       // Criar buffer em redor do resultado
                       const coords = r.geometry?.coordinates;
@@ -749,33 +740,35 @@ export default function App() {
             {/* Botão Terrain 3D */}
             <button 
               onClick={() => setShowTerrain(!showTerrain)}
-              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all border flex items-center gap-2 ${showTerrain ? 'bg-emerald-600/80 text-white border-emerald-400/30 shadow-lg shadow-emerald-500/20' : 'bg-slate-800/80 text-slate-400 border-slate-700 hover:bg-slate-700'}`}
+              aria-pressed={showTerrain}
+              className={`simgeo-action ${showTerrain ? 'is-active' : ''}`}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-              3D
+              <span>Vista 3D</span>
             </button>
             {/* Botão Limpar Buffer */}
             {bufferData && (
               <button 
                 onClick={() => setBufferData(null)}
-                className="px-3 py-2 rounded-lg text-sm font-medium bg-amber-600/80 text-white border border-amber-400/30 shadow-lg shadow-amber-500/20 flex items-center gap-2 transition-all hover:bg-amber-500"
+                className="simgeo-action text-amber-200"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                Limpar Buffer
+                <span>Limpar área</span>
               </button>
             )}
              <button 
                onClick={() => setShowCyclonePanel(true)}
-               className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-indigo-500/20 border border-indigo-400/20"
+               className="simgeo-action is-primary"
              >
-               + Novo Cenário
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v14M5 12h14" /></svg>
+               <span>Novo cenário</span>
              </button>
              <button 
                onClick={() => setShowFloodImpactPanel(true)}
-               className="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-lg shadow-cyan-500/20 border border-cyan-500/20 flex items-center gap-2"
+               className="simgeo-action is-cyan"
              >
                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
-               Impacto Cheias
+               <span>Impacto de cheias</span>
              </button>
           </div>
         </div>
@@ -794,7 +787,7 @@ export default function App() {
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (
               <div
-                className="absolute z-[1000] bg-slate-900/90 backdrop-blur text-white p-3 rounded-lg shadow-xl border border-slate-700 min-w-40 pointer-events-none"
+                className="simgeo-map-tooltip absolute z-[1000] backdrop-blur text-white p-3 border min-w-40 pointer-events-none"
                 style={{ left: tooltipInfo.x + 15, top: tooltipInfo.y + 15 }}
               >
                 <div className="font-bold text-sm text-indigo-300 mb-1">{tooltipInfo.title}</div>
@@ -804,10 +797,27 @@ export default function App() {
             )}
           </DeckGL>
 
+          <div className="simgeo-map-hud" aria-live="polite">
+            <div>
+              <span className="block">Camadas ativas</span>
+              <strong>{activeLayerCount}</strong>
+            </div>
+            <span className="simgeo-hud-divider" aria-hidden="true" />
+            <div>
+              <span className="block">Nível de zoom</span>
+              <strong>{Number(viewState.zoom || 0).toFixed(1)}</strong>
+            </div>
+            <span className="simgeo-hud-divider" aria-hidden="true" />
+            <div>
+              <span className="block">Modo</span>
+              <strong>{showTerrain ? 'Globo 3D' : 'Mapa 2D'}</strong>
+            </div>
+          </div>
+
           {(simGEEFlood || showLULC || showLithology || showGroundwater ||
             showMalaria || activeCyclone || floodImpactTileUrl ||
             adminActiveLevels.length > 0) && geeError && (
-            <div className="absolute bottom-6 left-6 z-[1000]">
+            <div className="absolute bottom-20 left-6 z-[1000]">
               <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
                 <div className="flex items-center gap-2 font-bold text-amber-400">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
@@ -824,69 +834,73 @@ export default function App() {
       
       {/* Painel de Ciclones */}
       {showCyclonePanel && (
-        <CyclonePanel
-          onClose={() => setShowCyclonePanel(false)}
-          activeCyclone={activeCyclone}
-          setActiveCyclone={setActiveCyclone}
-          cycloneStart={cycloneStart}
-          setCycloneStart={setCycloneStart}
-          cycloneEnd={cycloneEnd}
-          setCycloneEnd={setCycloneEnd}
-          cycloneLayerType={cycloneLayerType}
-          setCycloneLayerType={setCycloneLayerType}
-        />
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-5" role="presentation">
+          <CyclonePanel
+            onClose={() => setShowCyclonePanel(false)}
+            activeCyclone={activeCyclone}
+            setActiveCyclone={setActiveCyclone}
+            cycloneStart={cycloneStart}
+            setCycloneStart={setCycloneStart}
+            cycloneEnd={cycloneEnd}
+            setCycloneEnd={setCycloneEnd}
+            cycloneLayerType={cycloneLayerType}
+            setCycloneLayerType={setCycloneLayerType}
+          />
+        </div>
       )}
 
       {/* Painel de Flood Impact */}
       {showFloodImpactPanel && (
-        <FloodImpactPanel
-          onClose={() => setShowFloodImpactPanel(false)}
-          floodEngine={floodEngine}
-          setFloodEngine={value => updateFloodParameter(setFloodEngine, value)}
-          floodReturnPeriod={floodReturnPeriod}
-          setFloodReturnPeriod={value => updateFloodParameter(setFloodReturnPeriod, value)}
-          floodS1Start={floodS1Start}
-          setFloodS1Start={value => updateFloodParameter(setFloodS1Start, value)}
-          floodS1End={floodS1End}
-          setFloodS1End={value => updateFloodParameter(setFloodS1End, value)}
-          floodStats={floodStats}
-          floodLoading={floodLoading}
-          onSimulate={async () => {
-            setFloodLoading(true);
-            setFloodStats(null);
-            setFloodImpactTileUrl(null);
-            setGeeError(null);
-            try {
-              const body = {
-                engine: floodEngine,
-                return_period: floodReturnPeriod,
-                s1_start: floodEngine === 'sentinel1' ? floodS1Start : undefined,
-                s1_end: floodEngine === 'sentinel1' ? floodS1End : undefined,
-              };
-              const res = await axios.post(`${API_BASE_URL}simulation/gee/flood-impact/`, body);
-              const d = res.data.data;
-              setFloodImpactTileUrl(d.gee_layer.tile_url);
-              setFloodStats(d.stats);
-            } catch(err) {
-              console.error('Flood Impact error:', err);
-              setGeeError('Erro ao simular impacto: ' + (err.response?.data?.error || err.message));
-            } finally {
-              setFloodLoading(false);
-            }
-          }}
-        />
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-5" role="presentation">
+          <FloodImpactPanel
+            onClose={() => setShowFloodImpactPanel(false)}
+            floodEngine={floodEngine}
+            setFloodEngine={value => updateFloodParameter(setFloodEngine, value)}
+            floodReturnPeriod={floodReturnPeriod}
+            setFloodReturnPeriod={value => updateFloodParameter(setFloodReturnPeriod, value)}
+            floodS1Start={floodS1Start}
+            setFloodS1Start={value => updateFloodParameter(setFloodS1Start, value)}
+            floodS1End={floodS1End}
+            setFloodS1End={value => updateFloodParameter(setFloodS1End, value)}
+            floodStats={floodStats}
+            floodLoading={floodLoading}
+            onSimulate={async () => {
+              setFloodLoading(true);
+              setFloodStats(null);
+              setFloodImpactTileUrl(null);
+              setGeeError(null);
+              try {
+                const body = {
+                  engine: floodEngine,
+                  return_period: floodReturnPeriod,
+                  s1_start: floodEngine === 'sentinel1' ? floodS1Start : undefined,
+                  s1_end: floodEngine === 'sentinel1' ? floodS1End : undefined,
+                };
+                const res = await axios.post(`${API_BASE_URL}simulation/gee/flood-impact/`, body);
+                const d = res.data.data;
+                setFloodImpactTileUrl(d.gee_layer.tile_url);
+                setFloodStats(d.stats);
+              } catch(err) {
+                console.error('Flood Impact error:', err);
+                setGeeError('Erro ao simular impacto: ' + (err.response?.data?.error || err.message));
+              } finally {
+                setFloodLoading(false);
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* Modal Recharts (GLDAS) */}
       {gwModalOpen && (
-        <div className="absolute inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-2xl w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between p-4 border-b border-slate-800 bg-slate-900/50">
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-6">
+          <div className="simgeo-modal w-full max-w-5xl h-[80vh] flex flex-col overflow-hidden">
+            <div className="simgeo-modal-header flex items-center justify-between p-5 border-b bg-slate-900/30">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path></svg>
                 Análise Temporal de Águas Subterrâneas (GLDAS)
               </h2>
-              <button onClick={() => setGwModalOpen(false)} className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800">
+              <button onClick={() => setGwModalOpen(false)} className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-800" aria-label="Fechar análise temporal">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
@@ -948,16 +962,19 @@ export default function App() {
     {/* Botão Flutuante do Chatbot */}
     <button 
       onClick={() => setChatOpen(!chatOpen)}
-      className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-[0_0_20px_rgba(79,70,229,0.5)] flex items-center justify-center transition-transform hover:scale-110 z-[2000]"
+      className="simgeo-chat-trigger fixed bottom-6 right-6 flex items-center justify-center transition-transform hover:-translate-y-0.5 z-[2000]"
+      aria-expanded={chatOpen}
+      aria-label={chatOpen ? 'Fechar assistente SimGeo' : 'Abrir assistente SimGeo'}
     >
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+      <span>Pergunte à SimGeo</span>
     </button>
 
     {/* Interface do Chatbot */}
     {chatOpen && (
-      <div className="fixed bottom-24 right-6 w-96 max-h-[600px] h-[70vh] bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl flex flex-col z-[2000] overflow-hidden">
+      <div className="simgeo-chat-window fixed bottom-24 right-6 w-96 max-h-[600px] h-[70vh] backdrop-blur-xl border flex flex-col z-[2000] overflow-hidden" role="dialog" aria-label="Assistente espacial SimGeo">
         {/* Header */}
-        <div className="p-4 border-b border-slate-700/50 flex justify-between items-center bg-indigo-600/10">
+        <div className="simgeo-chat-header p-4 border-b border-slate-700/50 flex justify-between items-center">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
@@ -967,7 +984,7 @@ export default function App() {
               <p className="text-indigo-400 text-xs">SimGeo Agent</p>
             </div>
           </div>
-          <button onClick={() => setChatOpen(false)} className="text-slate-400 hover:text-white transition-colors">
+          <button onClick={() => setChatOpen(false)} className="text-slate-400 hover:text-white transition-colors" aria-label="Fechar assistente">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
@@ -1002,11 +1019,13 @@ export default function App() {
               onKeyDown={e => e.key === 'Enter' && handleSendChatMessage()}
               placeholder="Ex: Onde estão os hospitais?"
               className="flex-1 bg-transparent text-sm text-slate-200 outline-none"
+              aria-label="Mensagem para o assistente SimGeo"
             />
             <button 
               onClick={handleSendChatMessage}
               disabled={chatLoading || !chatInput.trim()}
               className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center hover:bg-indigo-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Enviar mensagem"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
             </button>
