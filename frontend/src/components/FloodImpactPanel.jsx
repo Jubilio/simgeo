@@ -2,7 +2,7 @@ const RETURN_PERIODS = [10, 20, 50, 75, 100, 200, 500];
 
 function StatCard({ label, value, unit, color }) {
   return (
-    <div className="bg-slate-800 rounded-lg p-3 flex flex-col gap-1">
+    <div className="bg-slate-800/70 border border-white/5 rounded-xl p-3 flex flex-col gap-1">
       <span className="text-[10px] text-slate-400 uppercase tracking-wider">{label}</span>
       <span className={`text-xl font-bold ${color || 'text-white'}`}>
         {value !== null && value !== undefined ? value.toLocaleString('pt-PT') : '—'}
@@ -22,16 +22,21 @@ export default function FloodImpactPanel({
   onSimulate
 }) {
   return (
-    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 p-5 rounded-xl shadow-2xl z-[200] w-[420px] text-slate-200">
+    <section className="simgeo-modal relative p-6 z-[200] w-[440px] max-w-full text-slate-200" role="dialog" aria-modal="true" aria-labelledby="flood-panel-title">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-700">
-        <h3 className="font-semibold flex items-center gap-2">
-          <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
-          </svg>
-          Simulação de Impacto de Cheias
-        </h3>
-        <button type="button" onClick={onClose} className="text-slate-400 hover:text-white" aria-label="Fechar painel de impacto de cheias">
+      <div className="simgeo-modal-header flex justify-between items-start mb-5 pb-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-400/20 flex items-center justify-center">
+            <svg className="w-5 h-5 text-cyan-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/>
+            </svg>
+          </div>
+          <div>
+            <span className="simgeo-modal-kicker">Análise de exposição</span>
+            <h3 id="flood-panel-title" className="font-semibold text-base text-white mt-0.5">Impacto de cheias</h3>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5" aria-label="Fechar painel de impacto de cheias">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
@@ -47,6 +52,7 @@ export default function FloodImpactPanel({
             <button
               type="button"
               onClick={() => setFloodEngine('glofas')}
+              aria-pressed={floodEngine === 'glofas'}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${floodEngine === 'glofas' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               GLOFAS (Período Retorno)
@@ -54,6 +60,7 @@ export default function FloodImpactPanel({
             <button
               type="button"
               onClick={() => setFloodEngine('sentinel1')}
+              aria-pressed={floodEngine === 'sentinel1'}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${floodEngine === 'sentinel1' ? 'bg-cyan-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               Sentinel-1 (Evento Real)
@@ -157,6 +164,6 @@ export default function FloodImpactPanel({
           </>
         )}
       </div>
-    </div>
+    </section>
   );
 }

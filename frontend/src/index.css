@@ -1,9 +1,787 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", "Aptos", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+  font-family: var(--font-sans);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  --simgeo-ink: #f7f8fc;
+  --simgeo-muted: #96a3b8;
+  --simgeo-panel: rgba(10, 17, 33, 0.92);
+  --simgeo-panel-soft: rgba(18, 28, 49, 0.76);
+  --simgeo-border: rgba(151, 170, 205, 0.14);
+  --simgeo-border-strong: rgba(151, 170, 205, 0.24);
+  --simgeo-violet: #8b7bff;
+  --simgeo-violet-strong: #6957ff;
+  --simgeo-mint: #43e0b3;
+  --simgeo-cyan: #42c8ee;
+  --simgeo-coral: #ff8168;
+  --simgeo-shadow: 0 24px 70px rgba(2, 6, 23, 0.48);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 antialiased;
+  overflow: hidden;
+  background: #050914;
+  color: var(--simgeo-ink);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid rgba(139, 123, 255, 0.9);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(139, 123, 255, 0.35);
+  color: #fff;
+}
+
+/* Application frame */
+.simgeo-shell {
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 13% 8%, rgba(105, 87, 255, 0.17), transparent 26rem),
+    #050914;
+}
+
+.simgeo-sidebar {
+  width: 304px;
+  min-width: 304px;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(13, 21, 39, 0.98), rgba(7, 13, 27, 0.97)),
+    var(--simgeo-panel);
+  border-right: 1px solid var(--simgeo-border);
+  box-shadow: 22px 0 60px rgba(1, 5, 16, 0.3);
+}
+
+.simgeo-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 220px;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(139, 123, 255, 0.16), transparent 50%),
+    linear-gradient(125deg, transparent 38%, rgba(67, 224, 179, 0.04));
+}
+
+.simgeo-brand {
+  position: relative;
+  padding: 22px 22px 18px;
+  border-bottom: 1px solid var(--simgeo-border);
+}
+
+.simgeo-brand-mark {
+  width: 46px;
+  height: 46px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(184, 174, 255, 0.42);
+  border-radius: 16px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 255, 255, 0.38), transparent 23%),
+    linear-gradient(145deg, #8d7dff, #5d4af2 58%, #25bda1);
+  box-shadow: 0 12px 32px rgba(105, 87, 255, 0.34);
+}
+
+.simgeo-brand-mark::after {
+  content: "";
+  position: absolute;
+  width: 32px;
+  height: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 50%;
+  transform: rotate(-22deg);
+}
+
+.simgeo-brand-name {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  color: #f4f2ff;
+}
+
+.simgeo-brand-tagline {
+  margin-top: 2px;
+  color: #8490a7;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.simgeo-brand-note {
+  margin: 15px 0 0;
+  max-width: 238px;
+  color: #93a0b6;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.simgeo-sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139, 123, 255, 0.4) transparent;
+  overscroll-behavior: contain;
+}
+
+.simgeo-sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.simgeo-sidebar-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(139, 123, 255, 0.38);
+}
+
+.simgeo-section-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 3px 7px 13px;
+  color: #718097;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.simgeo-section-label::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--simgeo-mint);
+  box-shadow: 0 0 12px rgba(67, 224, 179, 0.65);
+}
+
+.simgeo-layer-list {
+  padding-inline: 3px;
+}
+
+.simgeo-layer-toggle {
+  min-height: 49px;
+  margin-bottom: 7px;
+  border-radius: 15px !important;
+  background: rgba(255, 255, 255, 0.018);
+  border-color: transparent;
+}
+
+.simgeo-layer-toggle:hover {
+  transform: translateX(2px);
+  background: rgba(255, 255, 255, 0.055);
+  border-color: var(--simgeo-border);
+}
+
+.simgeo-layer-toggle[aria-pressed="true"] {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.06), 0 8px 24px rgba(2, 6, 23, 0.2);
+}
+
+.simgeo-switch {
+  width: 34px;
+  height: 19px;
+  position: relative;
+  flex: none;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #26334a;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.simgeo-switch::after {
+  content: "";
+  width: 13px;
+  height: 13px;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  border-radius: 50%;
+  background: #f8fafc;
+  box-shadow: 0 2px 6px rgba(2, 6, 23, 0.45);
+  transition: transform 180ms ease;
+}
+
+[aria-pressed="true"] > .simgeo-switch,
+.simgeo-switch.is-active {
+  border-color: rgba(67, 224, 179, 0.46);
+  background: linear-gradient(135deg, var(--simgeo-violet), var(--simgeo-mint));
+}
+
+[aria-pressed="true"] > .simgeo-switch::after,
+.simgeo-switch.is-active::after {
+  transform: translateX(15px);
+}
+
+.simgeo-control-card {
+  margin: -1px 2px 11px;
+  padding: 14px !important;
+  border: 1px solid var(--simgeo-border) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(145deg, rgba(20, 31, 53, 0.82), rgba(11, 19, 35, 0.9)) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+  animation: simgeo-card-in 180ms ease-out both;
+}
+
+.admin-boundary-card {
+  margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(139, 123, 255, 0.1), transparent 42%),
+    rgba(19, 29, 50, 0.72);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.admin-boundary-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-boundary-icon {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid rgba(139, 123, 255, 0.24);
+  border-radius: 9px;
+  color: #aa9fff;
+  background: rgba(139, 123, 255, 0.09);
+}
+
+.admin-boundary-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.admin-boundary-title {
+  flex: 1;
+  color: #eef1f7;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-boundary-source {
+  color: #65728a;
+  font-size: 8px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+}
+
+.admin-boundary-levels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.admin-level-button {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 8px;
+  cursor: pointer;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 10px;
+  color: #8d9ab0;
+  font-size: 9px;
+  font-weight: 650;
+  background: rgba(255, 255, 255, 0.025);
+  transition: transform 160ms ease, color 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.admin-level-button:hover {
+  transform: translateY(-1px);
+  color: #dce3ed;
+  border-color: var(--simgeo-border-strong);
+}
+
+.admin-level-button.is-active {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--level-color) 48%, transparent);
+  background: color-mix(in srgb, var(--level-color) 16%, transparent);
+}
+
+.admin-level-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--level-color);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--level-color) 65%, transparent);
+}
+
+.admin-level-short {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+}
+
+.admin-boundary-search {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 10px;
+  background: rgba(8, 14, 27, 0.5);
+}
+
+.admin-boundary-search:focus-within {
+  border-color: rgba(139, 123, 255, 0.5);
+}
+
+.admin-boundary-search-icon {
+  width: 13px;
+  color: #65748c;
+}
+
+.admin-boundary-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  color: #e8edf5;
+  font-size: 10px;
+  background: transparent;
+}
+
+.admin-boundary-input::placeholder {
+  color: #5e6b80;
+}
+
+.admin-boundary-clear {
+  padding: 2px;
+  border: 0;
+  color: #738097;
+  font-size: 9px;
+  background: transparent;
+}
+
+.admin-boundary-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-top: 9px;
+}
+
+.admin-boundary-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #78869c;
+  font-size: 9px;
+}
+
+.admin-boundary-legend-line {
+  width: 12px;
+  height: 3px;
+  border-radius: 99px;
+}
+
+@keyframes simgeo-card-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.simgeo-sidebar select,
+.simgeo-modal select,
+.simgeo-modal input[type="date"] {
+  min-height: 36px;
+  border-color: var(--simgeo-border-strong) !important;
+  border-radius: 10px !important;
+  color: #dce3ee !important;
+  background-color: rgba(25, 38, 63, 0.94) !important;
+}
+
+.simgeo-sidebar input[type="range"] {
+  height: 5px;
+}
+
+.simgeo-sidebar-footer {
+  padding: 12px 16px 15px;
+  border-top: 1px solid var(--simgeo-border);
+  background: rgba(5, 10, 22, 0.42);
+}
+
+.simgeo-api-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 13px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 15px;
+  background: rgba(14, 23, 41, 0.78);
+}
+
+.simgeo-api-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a7b2c5;
+  font-size: 11px;
+}
+
+.simgeo-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 10px rgba(251, 191, 36, 0.7);
+}
+
+.simgeo-status-dot.is-online {
+  background: var(--simgeo-mint);
+  box-shadow: 0 0 12px rgba(67, 224, 179, 0.72);
+}
+
+.simgeo-status-dot.is-offline {
+  background: var(--simgeo-coral);
+  box-shadow: 0 0 12px rgba(255, 129, 104, 0.66);
+}
+
+/* Map stage */
+.simgeo-map-stage {
+  min-width: 0;
+  background: #040812;
+}
+
+.simgeo-map-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.18), transparent 22%),
+    radial-gradient(circle at 50% 45%, transparent 45%, rgba(2, 6, 23, 0.22) 100%);
+}
+
+.simgeo-topbar {
+  height: 68px;
+  top: 16px;
+  right: 18px;
+  left: 18px;
+  padding: 0 13px 0 16px;
+  border: 1px solid rgba(163, 180, 211, 0.18);
+  border-radius: 19px;
+  background: rgba(11, 18, 33, 0.78);
+  box-shadow: 0 18px 46px rgba(1, 5, 16, 0.35), inset 0 1px rgba(255, 255, 255, 0.045);
+  backdrop-filter: blur(22px) saturate(135%);
+}
+
+.simgeo-location-chip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #dfe6f2;
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.simgeo-location-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(67, 224, 179, 0.26);
+  border-radius: 10px;
+  color: var(--simgeo-mint);
+  background: rgba(67, 224, 179, 0.08);
+}
+
+.simgeo-location-copy small {
+  display: block;
+  margin-top: 1px;
+  color: #728199;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.simgeo-search {
+  width: min(360px, 34vw);
+}
+
+.simgeo-search-field {
+  min-height: 42px;
+  border: 1px solid var(--simgeo-border-strong) !important;
+  border-radius: 13px !important;
+  background: rgba(22, 33, 54, 0.82) !important;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.025);
+}
+
+.simgeo-search-field:focus-within {
+  border-color: rgba(139, 123, 255, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(139, 123, 255, 0.1);
+}
+
+.simgeo-search-results {
+  margin-top: 8px !important;
+  border-color: var(--simgeo-border-strong) !important;
+  border-radius: 15px !important;
+  background: rgba(11, 18, 33, 0.96) !important;
+  box-shadow: var(--simgeo-shadow);
+}
+
+.simgeo-action {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid var(--simgeo-border-strong);
+  border-radius: 12px;
+  color: #dbe3ef;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(26, 39, 63, 0.82);
+  box-shadow: 0 7px 18px rgba(1, 5, 16, 0.18);
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+.simgeo-action:hover {
+  transform: translateY(-1px);
+  border-color: rgba(172, 160, 255, 0.42);
+  background: rgba(35, 49, 76, 0.94);
+}
+
+.simgeo-action.is-active {
+  color: #06251d;
+  border-color: rgba(111, 241, 203, 0.38);
+  background: linear-gradient(135deg, #5ce7c0, #33c99f);
+}
+
+.simgeo-action.is-primary {
+  color: #fff;
+  border-color: rgba(191, 182, 255, 0.35);
+  background: linear-gradient(135deg, #7765ff, #5f4de9);
+  box-shadow: 0 10px 24px rgba(105, 87, 255, 0.25);
+}
+
+.simgeo-action.is-cyan {
+  color: #e9fbff;
+  border-color: rgba(66, 200, 238, 0.32);
+  background: rgba(17, 110, 137, 0.82);
+}
+
+.simgeo-map-hud {
+  position: absolute;
+  z-index: 1000;
+  bottom: 22px;
+  left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 10px 13px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 14px;
+  color: #adb9ca;
+  font-size: 10px;
+  background: rgba(9, 16, 30, 0.76);
+  box-shadow: 0 14px 36px rgba(1, 5, 16, 0.3);
+  backdrop-filter: blur(16px);
+}
+
+.simgeo-map-hud strong {
+  color: #eef2f8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.simgeo-hud-divider {
+  width: 1px;
+  height: 23px;
+  background: var(--simgeo-border-strong);
+}
+
+.simgeo-map-tooltip {
+  border-color: var(--simgeo-border-strong) !important;
+  border-radius: 14px !important;
+  background: rgba(10, 17, 31, 0.92) !important;
+  box-shadow: var(--simgeo-shadow);
+}
+
+/* Dialogs and assistant */
+.simgeo-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  background: rgba(2, 6, 18, 0.58);
+  backdrop-filter: blur(7px);
+}
+
+.simgeo-modal {
+  border: 1px solid var(--simgeo-border-strong) !important;
+  border-radius: 22px !important;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(139, 123, 255, 0.1), transparent 34%),
+    rgba(11, 18, 33, 0.97) !important;
+  box-shadow: 0 35px 100px rgba(1, 4, 14, 0.66), inset 0 1px rgba(255, 255, 255, 0.04) !important;
+}
+
+.simgeo-modal-header {
+  border-color: var(--simgeo-border) !important;
+}
+
+.simgeo-modal-kicker {
+  color: var(--simgeo-mint);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.simgeo-chat-trigger {
+  width: auto;
+  min-width: 58px;
+  height: 54px;
+  padding: 0 18px;
+  gap: 9px;
+  border: 1px solid rgba(191, 182, 255, 0.34);
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(135deg, #7865ff, #5d4cf0 62%, #3f88e8);
+  box-shadow: 0 15px 40px rgba(79, 70, 229, 0.42), inset 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.simgeo-chat-trigger span {
+  font-size: 12px;
+  font-weight: 720;
+}
+
+.simgeo-chat-window {
+  border-color: var(--simgeo-border-strong) !important;
+  border-radius: 22px !important;
+  background: rgba(10, 17, 31, 0.96) !important;
+  box-shadow: 0 30px 85px rgba(1, 5, 16, 0.6) !important;
+}
+
+.simgeo-chat-header {
+  background:
+    radial-gradient(circle at 10% 0%, rgba(139, 123, 255, 0.18), transparent 42%),
+    rgba(15, 24, 44, 0.88) !important;
+}
+
+@media (max-width: 1180px) {
+  .simgeo-sidebar {
+    width: 278px;
+    min-width: 278px;
+  }
+
+  .simgeo-location-copy small,
+  .simgeo-action-label-secondary {
+    display: none;
+  }
+
+  .simgeo-search {
+    width: min(300px, 31vw);
+  }
+}
+
+@media (max-width: 900px) {
+  .simgeo-sidebar {
+    width: 250px;
+    min-width: 250px;
+  }
+
+  .simgeo-brand-note,
+  .simgeo-location-chip {
+    display: none;
+  }
+
+  .simgeo-topbar {
+    left: 12px;
+    right: 12px;
+  }
+
+  .simgeo-search {
+    width: min(280px, 42vw);
+  }
+
+  .simgeo-action {
+    width: 40px;
+    padding: 0;
+  }
+
+  .simgeo-action > span {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .simgeo-sidebar {
+    width: 220px;
+    min-width: 220px;
+  }
+
+  .simgeo-brand {
+    padding-inline: 15px;
+  }
+
+  .simgeo-search {
+    width: 45vw;
+  }
+
+  .simgeo-chat-trigger span {
+    display: none;
+  }
+
+  .simgeo-chat-trigger {
+    width: 54px;
+    min-width: 54px;
+    padding: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -32,13 +32,18 @@ export default function CyclonePanel({
   };
 
   return (
-    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 p-5 rounded-xl shadow-2xl z-[200] w-96 text-slate-200">
-      <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-700">
-        <h3 className="font-semibold flex items-center gap-2">
-          <svg className="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A4 4 0 002 12.271m12.752-.103l-3.197 2.132a4 4 0 01-9.555-3.236M21.996 12.271a4 4 0 01-7.244 3.236M21.996 12.271a4 4 0 00-7.244-3.236m7.244 3.236c-.021.09-.044.18-.069.271M14.752 9.036c.021-.09.044-.18.069-.271"></path></svg>
-          Simulação de Ciclones
-        </h3>
-        <button type="button" onClick={onClose} className="text-slate-400 hover:text-white" aria-label="Fechar painel de ciclones">
+    <section className="simgeo-modal relative p-6 z-[200] w-[410px] max-w-full text-slate-200" role="dialog" aria-modal="true" aria-labelledby="cyclone-panel-title">
+      <div className="simgeo-modal-header flex justify-between items-start mb-5 pb-4 border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/12 border border-indigo-400/20 flex items-center justify-center">
+            <svg className="w-5 h-5 text-indigo-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A4 4 0 002 12.271m12.752-.103l-3.197 2.132a4 4 0 01-9.555-3.236M21.996 12.271a4 4 0 01-7.244 3.236M21.996 12.271a4 4 0 00-7.244-3.236m7.244 3.236c-.021.09-.044.18-.069.271M14.752 9.036c.021-.09.044-.18.069-.271"></path></svg>
+          </div>
+          <div>
+            <span className="simgeo-modal-kicker">Laboratório climático</span>
+            <h3 id="cyclone-panel-title" className="font-semibold text-base text-white mt-0.5">Simulação de ciclones</h3>
+          </div>
+        </div>
+        <button type="button" onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/5" aria-label="Fechar painel de ciclones">
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
       </div>
@@ -51,11 +56,9 @@ export default function CyclonePanel({
             type="button"
             aria-pressed={activeCyclone}
             aria-label="Activar ou desactivar camada de ciclone"
-            className={`w-10 h-5 rounded-full transition-colors relative ${activeCyclone ? 'bg-indigo-500' : 'bg-slate-700'}`}
+            className={`simgeo-switch ${activeCyclone ? 'is-active' : ''}`}
             onClick={() => setActiveCyclone(previous => !previous)}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-transform ${activeCyclone ? 'left-5' : 'left-1'}`}></span>
-          </button>
+          />
         </label>
 
         {/* Seleção do Ciclone */}
@@ -107,6 +110,7 @@ export default function CyclonePanel({
               type="button"
               onClick={() => setCycloneLayerType('rain')}
               disabled={!activeCyclone}
+              aria-pressed={cycloneLayerType === 'rain'}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${cycloneLayerType === 'rain' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               Precipitação (Chuva)
@@ -115,6 +119,7 @@ export default function CyclonePanel({
               type="button"
               onClick={() => setCycloneLayerType('wind')}
               disabled={!activeCyclone}
+              aria-pressed={cycloneLayerType === 'wind'}
               className={`flex-1 py-1.5 text-xs font-medium rounded transition-all ${cycloneLayerType === 'wind' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-slate-200'}`}
             >
               Velocidade Vento
@@ -143,6 +148,6 @@ export default function CyclonePanel({
           Camadas ambientais de apoio; não representam trajetória oficial, rajada observada ou categoria do ciclone.
         </p>
       </div>
-    </div>
+    </section>
   );
 }
