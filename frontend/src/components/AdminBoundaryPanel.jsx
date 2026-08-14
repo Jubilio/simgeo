@@ -5,8 +5,17 @@ const LEVEL_META = {
   level2: { label: 'Distritos', color: '#43E0B3', shortLabel: 'ADM2' },
 };
 
-export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, setNameFilter }) {
+export function AdminBoundaryPanel({
+  activeLevels,
+  setActiveLevels,
+  nameFilter,
+  setNameFilter,
+  searchResults = [],
+  searchLoading = false,
+  onSelectResult,
+}) {
   const [inputValue, setInputValue] = useState(nameFilter || '');
+  const [resultsOpen, setResultsOpen] = useState(false);
   const debounceRef = useRef(null);
 
   useEffect(() => {
@@ -26,14 +35,23 @@ export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, 
   const handleNameInput = (event) => {
     const value = event.target.value;
     setInputValue(value);
+    setResultsOpen(value.trim().length >= 2);
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => setNameFilter(value), 500);
+  };
+
+  const selectResult = result => {
+    clearTimeout(debounceRef.current);
+    setInputValue(result.name);
+    setResultsOpen(false);
+    onSelectResult?.(result);
   };
 
   const clearFilter = () => {
     clearTimeout(debounceRef.current);
     setInputValue('');
     setNameFilter('');
+    setResultsOpen(false);
   };
 
   return (
@@ -69,20 +87,62 @@ export function AdminBoundaryPanel({ activeLevels, setActiveLevels, nameFilter, 
         })}
       </div>
 
-      <div className="admin-boundary-search">
-        <svg className="admin-boundary-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input
-          type="text"
-          placeholder="Filtrar distrito ou província"
-          value={inputValue}
-          onChange={handleNameInput}
-          className="admin-boundary-input"
-          aria-label="Filtrar limites administrativos por nome"
-        />
-        {inputValue ? (
-          <button type="button" onClick={clearFilter} className="admin-boundary-clear" aria-label="Limpar filtro">✕</button>
+      <div className="admin-boundary-search-wrap">
+        <div className="admin-boundary-search">
+          <button
+            type="button"
+            className="admin-boundary-search-submit"
+            onClick={() => searchResults[0] && selectResult(searchResults[0])}
+            disabled={!searchResults[0]}
+            aria-label="Ir para o primeiro resultado"
+          >
+            <svg className="admin-boundary-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </button>
+          <input
+            type="text"
+            placeholder="Distrito ou província"
+            value={inputValue}
+            onChange={handleNameInput}
+            onFocus={() => setResultsOpen(inputValue.trim().length >= 2)}
+            onKeyDown={event => {
+              if (event.key === 'Enter' && searchResults[0]) {
+                event.preventDefault();
+                selectResult(searchResults[0]);
+              }
+            }}
+            className="admin-boundary-input"
+            aria-label="Pesquisar e filtrar limites administrativos por nome"
+            aria-expanded={resultsOpen}
+          />
+          {searchLoading ? <span className="admin-boundary-spinner" aria-label="A pesquisar" /> : null}
+          {inputValue ? (
+            <button type="button" onClick={clearFilter} className="admin-boundary-clear" aria-label="Limpar filtro">✕</button>
+          ) : null}
+        </div>
+
+        {resultsOpen && inputValue.trim().length >= 2 ? (
+          <div className="admin-boundary-results" role="listbox" aria-label="Resultados administrativos">
+            {searchResults.map(result => (
+              <button
+                type="button"
+                role="option"
+                aria-selected="false"
+                key={result.id}
+                onClick={() => selectResult(result)}
+                className="admin-boundary-result"
+              >
+                <span className="admin-boundary-result-name">{result.name}</span>
+                <span className="admin-boundary-result-type">
+                  {result.level_label}{result.parent_name ? ` · ${result.parent_name}` : ''}
+                </span>
+              </button>
+            ))}
+            {!searchLoading && searchResults.length === 0 ? (
+              <span className="admin-boundary-empty">Nenhuma área encontrada.</span>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
