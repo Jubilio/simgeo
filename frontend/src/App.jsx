@@ -3,7 +3,7 @@ import axios from 'axios';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView, MapView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { BitmapLayer } from '@deck.gl/layers';
+import { BitmapLayer, PolygonLayer } from '@deck.gl/layers';
 import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
@@ -33,6 +33,55 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 const DEFAULT_BUFFER_RADIUS_KM = 5;
+
+const createGlobeSurfaceCells = (step = 15) => {
+  const cells = [];
+  for (let latitude = -90; latitude < 90; latitude += step) {
+    const south = Math.max(latitude, -89.9);
+    const north = Math.min(latitude + step, 89.9);
+    for (let longitude = -180; longitude < 180; longitude += step) {
+      cells.push({
+        latitude: (south + north) / 2,
+        polygon: [
+          [longitude, south],
+          [longitude + step, south],
+          [longitude + step, north],
+          [longitude, north],
+        ],
+      });
+    }
+  }
+  return cells;
+};
+
+const GLOBE_SURFACE_CELLS = createGlobeSurfaceCells();
+
+const coordinatesFromFeature = feature => {
+  const geometry = feature?.geometry;
+  if (!geometry?.coordinates) return null;
+  if (geometry.type === 'Point') return geometry.coordinates;
+  try {
+    return turf.centroid(feature).geometry.coordinates;
+  } catch {
+    return null;
+  }
+};
+
+const zoomForBounds = (bounds, level) => {
+  if (!Array.isArray(bounds) || bounds.length !== 4) return 11;
+  const span = Math.max(
+    Math.abs(bounds[2] - bounds[0]),
+    Math.abs(bounds[3] - bounds[1]),
+  );
+  let zoom = 11.5;
+  if (span > 10) zoom = 4.5;
+  else if (span > 5) zoom = 5.5;
+  else if (span > 2) zoom = 6.5;
+  else if (span > 1) zoom = 7.5;
+  else if (span > 0.4) zoom = 8.5;
+  else if (span > 0.15) zoom = 10;
+  return level === 'level1' ? Math.min(zoom, 7.5) : Math.min(zoom, 11);
+};
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -103,6 +152,9 @@ export default function App() {
   // Barra de pesquisa
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchTimeoutRef = useRef(null);
+  const searchAbortRef = useRef(null);
   
   // Buffer Interativo (Turf.js)
   const [bufferData, setBufferData] = useState(null);
@@ -114,6 +166,9 @@ export default function App() {
   // Limites Administrativos FAO GAUL
   const [adminActiveLevels, setAdminActiveLevels] = useState([]);
   const [adminNameFilter, setAdminNameFilter] = useState('');
+  const [adminSearchResults, setAdminSearchResults] = useState([]);
+  const [adminSearchLoading, setAdminSearchLoading] = useState(false);
+  const adminSearchAbortRef = useRef(null);
 
   // Tooltip UI
   const [tooltipInfo, setTooltipInfo] = useState(null);
@@ -227,33 +282,156 @@ export default function App() {
     }
   };
 
-  // Pesquisa de infraestruturas
-  const handleSearch = async (query) => {
+  const focusMapLocation = result => {
+    const bounds = result?.bounds;
+    const centroid = result?.centroid || result?.coordinates;
+    if (!centroid || centroid.length < 2) return;
+
+    const longitude = bounds ? (bounds[0] + bounds[2]) / 2 : centroid[0];
+    const latitude = bounds ? (bounds[1] + bounds[3]) / 2 : centroid[1];
+    setViewState(previous => ({
+      ...previous,
+      longitude,
+      latitude,
+      zoom: bounds ? zoomForBounds(bounds, result.level) : 12,
+      transitionDuration: 1600,
+    }));
+  };
+
+  const handleAdminResultSelect = result => {
+    setAdminActiveLevels(previous => (
+      previous.includes(result.level) ? previous : [...previous, result.level]
+    ));
+    setAdminNameFilter(result.name);
+    focusMapLocation(result);
+  };
+
+  useEffect(() => {
+    adminSearchAbortRef.current?.abort();
+    const normalizedQuery = adminNameFilter.trim();
+    if (normalizedQuery.length < 2) {
+      setAdminSearchResults([]);
+      setAdminSearchLoading(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    adminSearchAbortRef.current = controller;
+    setAdminSearchLoading(true);
+    const params = new URLSearchParams({
+      search: normalizedQuery,
+      country: 'Mozambique',
+      limit: '8',
+    });
+    axios
+      .get(`${API_BASE_URL}simulation/gee/admin-boundaries/?${params}`, {
+        signal: controller.signal,
+      })
+      .then(response => setAdminSearchResults(response.data?.results || []))
+      .catch(error => {
+        if (axios.isCancel(error)) return;
+        console.warn('Erro na pesquisa administrativa:', error);
+        setAdminSearchResults([]);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setAdminSearchLoading(false);
+      });
+
+    return () => controller.abort();
+  }, [adminNameFilter]);
+
+  // Pesquisa conjunta de localidades administrativas e infraestruturas.
+  const handleSearch = query => {
     setSearchQuery(query);
-    if (query.length < 2) {
+    clearTimeout(searchTimeoutRef.current);
+    searchAbortRef.current?.abort();
+
+    const normalizedQuery = query.trim();
+    if (normalizedQuery.length < 2) {
       setSearchResults([]);
+      setSearchLoading(false);
       return;
     }
-    try {
-      const res = await axios.get(
-        `${API_BASE_URL}infrastructures/?search=${encodeURIComponent(query)}`,
-      );
-      const data = res.data.features || res.data.results || res.data;
-      // Filtra pelo nome
-      const filtered = (Array.isArray(data) ? data : []).filter(f =>
-        f.properties?.name?.toLowerCase().includes(query.toLowerCase())
-      );
-      setSearchResults(filtered.slice(0, 8));
-    } catch (err) {
-      console.error('Erro na pesquisa:', err);
-    }
+
+    setSearchLoading(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
+      const adminParams = new URLSearchParams({
+        search: normalizedQuery,
+        country: 'Mozambique',
+        limit: '8',
+      });
+
+      const [adminResponse, infrastructureResponse] = await Promise.allSettled([
+        axios.get(`${API_BASE_URL}simulation/gee/admin-boundaries/?${adminParams}`, {
+          signal: controller.signal,
+        }),
+        axios.get(`${API_BASE_URL}infrastructures/`, {
+          params: { search: normalizedQuery },
+          signal: controller.signal,
+        }),
+      ]);
+
+      if (controller.signal.aborted) return;
+
+      const adminResults = adminResponse.status === 'fulfilled'
+        ? (adminResponse.value.data?.results || []).map(result => ({
+            ...result,
+            kind: 'admin',
+            typeLabel: result.parent_name
+              ? `${result.level_label} · ${result.parent_name}`
+              : result.level_label,
+          }))
+        : [];
+
+      const infrastructurePayload = infrastructureResponse.status === 'fulfilled'
+        ? infrastructureResponse.value.data
+        : null;
+      const infrastructureFeatures = infrastructurePayload?.features
+        || infrastructurePayload?.results?.features
+        || infrastructurePayload?.results
+        || (Array.isArray(infrastructurePayload) ? infrastructurePayload : []);
+      const infrastructureResults = (Array.isArray(infrastructureFeatures)
+        ? infrastructureFeatures
+        : [])
+        .map(feature => ({
+          id: `infrastructure:${feature.id || feature.properties?.id}`,
+          kind: 'infrastructure',
+          name: feature.properties?.name || 'Infraestrutura sem nome',
+          typeLabel: feature.properties?.type_display || feature.properties?.type || 'Infraestrutura',
+          coordinates: coordinatesFromFeature(feature),
+        }))
+        .filter(result => result.coordinates);
+
+      setSearchResults([...adminResults, ...infrastructureResults].slice(0, 8));
+      setSearchLoading(false);
+    }, 300);
   };
+
+  useEffect(() => () => {
+    clearTimeout(searchTimeoutRef.current);
+    searchAbortRef.current?.abort();
+    adminSearchAbortRef.current?.abort();
+  }, []);
   
   // Criar Buffer com Turf.js
   const createBuffer = (lng, lat, radiusKm) => {
     const point = turf.point([lng, lat]);
     const buffered = turf.buffer(point, radiusKm, { units: 'kilometers' });
     setBufferData(buffered);
+  };
+
+  const selectSearchResult = result => {
+    if (result.kind === 'admin') {
+      handleAdminResultSelect(result);
+    } else {
+      focusMapLocation(result);
+      createBuffer(result.coordinates[0], result.coordinates[1], DEFAULT_BUFFER_RADIUS_KM);
+    }
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchLoading(false);
   };
 
   const updateFloodParameter = (setter, value) => {
@@ -319,6 +497,24 @@ export default function App() {
     }
   }), []);
 
+  // Superfície oceânica contínua para evitar áreas vazias enquanto os tiles carregam no globo.
+  const globeSurfaceLayer = useMemo(() => new PolygonLayer({
+    id: 'globe-surface',
+    data: GLOBE_SURFACE_CELLS,
+    getPolygon: cell => cell.polygon,
+    getFillColor: cell => {
+      const polarLight = Math.round(Math.abs(cell.latitude) * 0.08);
+      return [5 + polarLight, 18 + polarLight, 37 + polarLight, 255];
+    },
+    filled: true,
+    stroked: false,
+    pickable: false,
+  }), []);
+
+  const mapLayers = showTerrain
+    ? [globeSurfaceLayer, baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers]
+    : [baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers];
+
   const activeLayerCount = [
     showInfrastructure,
     simGEEFlood,
@@ -363,6 +559,9 @@ export default function App() {
               setActiveLevels={setAdminActiveLevels}
               nameFilter={adminNameFilter}
               setNameFilter={setAdminNameFilter}
+              searchResults={adminSearchResults}
+              searchLoading={adminSearchLoading}
+              onSelectResult={handleAdminResultSelect}
             />
           </div>
 
@@ -723,39 +922,44 @@ export default function App() {
                 placeholder="Pesquisar infraestruturas, locais..."
                 value={searchQuery}
                 onChange={e => handleSearch(e.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter' && searchResults[0]) {
+                    event.preventDefault();
+                    selectSearchResult(searchResults[0]);
+                  }
+                }}
                 className="bg-transparent text-sm text-slate-200 placeholder-slate-500 outline-none w-full"
                 aria-label="Pesquisar infraestruturas e locais"
               />
+              {searchLoading && (
+                <span className="simgeo-search-spinner" aria-label="A pesquisar" />
+              )}
               {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setSearchResults([]); }} className="text-slate-500 hover:text-white" aria-label="Limpar pesquisa">
+                <button onClick={() => handleSearch('')} className="text-slate-500 hover:text-white" aria-label="Limpar pesquisa">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
               )}
             </div>
-            {searchResults.length > 0 && (
+            {(searchResults.length > 0 || (searchQuery.trim().length >= 2 && !searchLoading)) && (
               <div className="simgeo-search-results absolute top-full left-0 right-0 backdrop-blur-xl border overflow-hidden max-h-64 overflow-y-auto">
                 {searchResults.map((r, idx) => (
                   <button
-                    key={r.id || r.properties?.id || `${r.properties?.name || 'resultado'}-${idx}`}
-                    onClick={() => {
-                      // Criar buffer em redor do resultado
-                      const coords = r.geometry?.coordinates;
-                      if (coords) {
-                        const [lng, lat] = Array.isArray(coords[0]) ? coords[0] : coords;
-                        createBuffer(lng, lat, DEFAULT_BUFFER_RADIUS_KM);
-                      }
-                      setSearchQuery('');
-                      setSearchResults([]);
-                    }}
+                    key={r.id || `${r.name || 'resultado'}-${idx}`}
+                    onClick={() => selectSearchResult(r)}
                     className="w-full px-4 py-2.5 text-left hover:bg-slate-800 transition-colors flex items-center gap-3 border-b border-slate-800/50 last:border-0"
                   >
-                    <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0"></div>
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${r.kind === 'admin' ? 'bg-emerald-400' : 'bg-indigo-400'}`}></div>
                     <div>
-                      <div className="text-sm text-slate-200">{r.properties?.name || 'Sem Nome'}</div>
-                      <div className="text-[10px] text-slate-500">{r.properties?.type_display || r.properties?.type}</div>
+                      <div className="text-sm text-slate-200">{r.name}</div>
+                      <div className="text-[10px] text-slate-500">{r.typeLabel}</div>
                     </div>
                   </button>
                 ))}
+                {searchResults.length === 0 && (
+                  <div className="px-4 py-3 text-xs text-slate-500">
+                    Nenhum local ou infraestrutura encontrado.
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -812,12 +1016,12 @@ export default function App() {
         {/* Map Container */}
         <div className="absolute inset-0 z-10" onContextMenu={e => e.preventDefault()}>
           <DeckGL
-            views={showTerrain ? new GlobeView({ id: 'globe', resolution: 10 }) : new MapView({ id: 'map', repeat: true })}
+            views={showTerrain ? new GlobeView({ id: 'globe', resolution: 5 }) : new MapView({ id: 'map', repeat: true })}
             viewState={viewState}
             onViewStateChange={({viewState}) => setViewState(viewState)}
             controller={true}
             onClick={handleMapClick}
-            layers={[baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers]} // Carto DB Base Layer -> GEE -> Admin Boundaries -> Vectors
+            layers={mapLayers}
           >
             {/* Custom Tooltip renderizado pelo React (deck.gl hover) */}
             {tooltipInfo && (
