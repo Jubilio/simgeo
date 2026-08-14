@@ -19,6 +19,7 @@ export default function FloodImpactPanel({
   floodS1Start, setFloodS1Start,
   floodS1End, setFloodS1End,
   floodStats, floodLoading,
+  error,
   onSimulate
 }) {
   return (
@@ -126,6 +127,12 @@ export default function FloodImpactPanel({
             </>
           ) : '▶  Simular Impacto'}
         </button>
+
+        {error && (
+          <div role="alert" className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-xs leading-relaxed text-red-200">
+            {error}
+          </div>
+        )}
 
         {/* Legenda */}
         <div className="flex items-center gap-2 text-[10px] text-slate-500">

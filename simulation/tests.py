@@ -259,3 +259,19 @@ class NewSimulationViewValidationTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Valores suportados", response.data["error"])
+
+    @patch("simulation.views.get_flood_impact")
+    def test_flood_impact_view_preserves_timeout_message(self, service_mock):
+        service_mock.side_effect = RuntimeError(
+            "O Earth Engine excedeu o tempo de cálculo da exposição."
+        )
+        request = self.factory.post(
+            "/api/simulation/gee/flood-impact/",
+            {"engine": "glofas", "return_period": 100},
+            format="json",
+        )
+
+        response = GEEFloodImpactView.as_view()(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("excedeu o tempo", response.data["error"])

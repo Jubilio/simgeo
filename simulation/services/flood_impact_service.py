@@ -11,7 +11,10 @@ FLOOD_ENGINES = {"glofas", "sentinel1"}
 GLOFAS_RETURN_PERIODS = {10, 20, 50, 75, 100, 200, 500}
 MAX_SENTINEL1_INTERVAL_DAYS = 30
 FLOOD_DEPTH_THRESHOLD_M = 0.15
-EXPOSURE_SCALE_M = 100
+EXPOSURE_SCALE_M = 500
+EXPOSURE_CRS = "EPSG:6933"
+AGGREGATION_MAX_PIXELS = 4096
+EXPOSURE_TILE_SCALE = 8
 
 
 def validate_flood_impact_parameters(
@@ -95,6 +98,72 @@ def _sentinel1_flood_mask(mozambique, start_date, end_date):
     return post_event.lt(-18).And(pre_event.gt(-16)).rename("flooded")
 
 
+def _aggregate_exposure_layers(flood_mask, population, cropland):
+    """Aggregate national exposure before the synchronous reduction.
+
+    Reducing the three native-resolution datasets over all of Mozambique at
+    100 m exceeds the interactive Earth Engine computation deadline. Convert
+    each input to a fraction or density, aggregate it to an equal-area 500 m
+    grid and only then calculate the national totals. This preserves units:
+    population density multiplied by pixel area returns people, while crop
+    fraction multiplied by pixel area returns square metres.
+    """
+    analysis_projection = ee.Projection(EXPOSURE_CRS).atScale(
+        EXPOSURE_SCALE_M
+    )
+
+    flood_fraction = (
+        flood_mask
+        .unmask(0)
+        .reduceResolution(
+            reducer=ee.Reducer.mean(),
+            bestEffort=True,
+            maxPixels=AGGREGATION_MAX_PIXELS,
+        )
+        .reproject(analysis_projection)
+        .clamp(0, 1)
+    )
+
+    population_density = (
+        population
+        .unmask(0)
+        .divide(ee.Image.pixelArea())
+        .reduceResolution(
+            reducer=ee.Reducer.mean(),
+            bestEffort=True,
+            maxPixels=AGGREGATION_MAX_PIXELS,
+        )
+        .reproject(analysis_projection)
+    )
+
+    cropland_fraction = (
+        cropland
+        .unmask(0)
+        .reduceResolution(
+            reducer=ee.Reducer.mean(),
+            bestEffort=True,
+            maxPixels=AGGREGATION_MAX_PIXELS,
+        )
+        .reproject(analysis_projection)
+        .clamp(0, 1)
+    )
+
+    output_pixel_area = ee.Image.pixelArea()
+    exposed_population = (
+        population_density
+        .multiply(flood_fraction)
+        .multiply(output_pixel_area)
+        .rename("population")
+    )
+    exposed_cropland = (
+        cropland_fraction
+        .multiply(flood_fraction)
+        .multiply(output_pixel_area)
+        .rename("cropland_area_m2")
+    )
+    return ee.Image.cat([exposed_population, exposed_cropland])
+
+
 def get_flood_impact(
     engine="glofas", return_period=100, s1_start=None, s1_end=None
 ):
@@ -134,21 +203,17 @@ def get_flood_impact(
         )
         cropland = landcover.eq(40)
 
-        exposed_population = population.updateMask(flood_mask).rename("population")
-        exposed_cropland = (
-            ee.Image.pixelArea()
-            .updateMask(cropland.And(flood_mask))
-            .rename("cropland_area_m2")
+        exposure_image = _aggregate_exposure_layers(
+            flood_mask, population, cropland
         )
-
-        exposure = ee.Image.cat(
-            [exposed_population, exposed_cropland]
-        ).reduceRegion(
+        exposure = exposure_image.reduceRegion(
             reducer=ee.Reducer.sum(),
             geometry=mozambique,
             scale=EXPOSURE_SCALE_M,
-            maxPixels=1e9,
-            tileScale=4,
+            crs=EXPOSURE_CRS,
+            bestEffort=True,
+            maxPixels=25_000_000,
+            tileScale=EXPOSURE_TILE_SCALE,
         )
         exposure_values = exposure.getInfo() or {}
         total_population = exposure_values.get("population", 0) or 0
@@ -180,6 +245,12 @@ def get_flood_impact(
                 "population_dataset": "WorldPop/GP/100m/pop (2020, MOZ)",
                 "landcover_dataset": "ESA/WorldCover/v100 (2020)",
                 "exposure_scale_m": EXPOSURE_SCALE_M,
+                "exposure_crs": EXPOSURE_CRS,
+                "exposure_method": (
+                    "Agregação de densidade populacional e frações de cheia/"
+                    "agricultura numa grelha de área equivalente antes da "
+                    "redução nacional."
+                ),
                 "flood_depth_threshold_m": (
                     FLOOD_DEPTH_THRESHOLD_M if engine == "glofas" else None
                 ),
@@ -190,6 +261,12 @@ def get_flood_impact(
             },
         }
     except ee.EEException as exc:
+        if "timed out" in str(exc).lower():
+            raise RuntimeError(
+                "O Earth Engine excedeu o tempo de cálculo da exposição. "
+                "Tente novamente; se persistir, reduza a área ou use uma "
+                "análise assíncrona."
+            ) from exc
         raise RuntimeError(
             f"Erro ao processar impacto da cheia no GEE: {exc}"
         ) from exc

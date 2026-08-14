@@ -889,6 +889,7 @@ export default function App() {
             setFloodS1End={value => updateFloodParameter(setFloodS1End, value)}
             floodStats={floodStats}
             floodLoading={floodLoading}
+            error={geeError}
             onSimulate={async () => {
               setFloodLoading(true);
               setFloodStats(null);
