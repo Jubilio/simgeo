@@ -44,6 +44,10 @@ interativa, as estatísticas são calculadas em `EPSG:6933` a:
 - 100 m para uma província;
 - 30 m para uma área GeoJSON personalizada.
 
+O backend envia ao Earth Engine a definição OGC WKT oficial do EPSG:6933,
+evitando incompatibilidades do parser de códigos CRS sem alterar a projeção
+equal-area utilizada nos cálculos.
+
 Essa diferença é mostrada na interface e nos metadados da resposta.
 Como o produto é categórico, a avaliação estatística utiliza vizinho mais
 próximo e nunca interpolação bilinear, evitando a criação de classes inválidas.
