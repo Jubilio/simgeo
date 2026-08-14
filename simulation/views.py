@@ -19,6 +19,11 @@ from .services.malaria_service import (
     get_malaria_suitability_tiles,
 )
 from .services.gaul_service import get_gaul_admin_tiles, search_gaul_admin_areas
+from .services.admin_baseline_service import (
+    estimate_exposed_demographics,
+    get_admin_baseline_payload,
+    get_admin_baseline_tiles,
+)
 from .services.cyclone_service import get_cyclone_tiles
 from .services.flood_impact_service import get_flood_impact
 from .services.forest_dynamics_service import (
@@ -30,6 +35,41 @@ from .services.forest_dynamics_service import (
 
 
 logger = logging.getLogger(__name__)
+
+
+class AdminBaselineView(APIView):
+    """Serve OCHA demographic/displacement indicators by Admin1 or Admin2."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        include_map = request.query_params.get("include_map", "false").lower() in {
+            "1", "true", "yes",
+        }
+        try:
+            payload = get_admin_baseline_payload(
+                level=request.query_params.get("level", 2),
+                indicator=request.query_params.get("indicator", "population_total"),
+                search=request.query_params.get("search", ""),
+                admin1_pcode=request.query_params.get("admin1_pcode") or None,
+            )
+        except ValueError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            logger.exception("Admin baseline loading failed")
+            return Response({"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        payload["gee_layer"] = None
+        payload["map_error"] = None
+        if include_map and not request.query_params.get("search"):
+            try:
+                payload["gee_layer"] = get_admin_baseline_tiles(payload)
+            except Exception as exc:
+                logger.warning("Admin baseline map unavailable: %s", exc)
+                payload["map_error"] = str(exc)
+
+        return Response({"status": "success", "data": payload})
 
 
 class GEEFloodSimulationView(APIView):
@@ -281,6 +321,11 @@ class GEEFloodImpactView(APIView):
         
         try:
             result = get_flood_impact(engine, return_period, s1_start, s1_end)
+            exposed_population = result.get("stats", {}).get("exposed_population")
+            if exposed_population is not None:
+                result["stats"]["demographic_exposure"] = (
+                    estimate_exposed_demographics(exposed_population)
+                )
             return Response({"status": "success", "data": result})
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)

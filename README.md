@@ -25,10 +25,26 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 5. **Dashboard Multi-Risco**: Cálculo em tempo real: `Risco = Perigo (Hazard) × Exposição × Vulnerabilidade`.
 6. **Aptidão Ambiental para a Malária (Moçambique)**: Índice anual ou mensal no Google Earth Engine, combinando temperatura, precipitação, água superficial, vegetação e elevação. O produto representa aptidão ambiental e não carga da doença. Consulte a [metodologia e limitações](docs/MALARIA_SUITABILITY.md).
 7. **Dinâmica Florestal**: Monitorização anual da cobertura arbórea com Dynamic World, distinguindo estoque, saldo líquido, ganhos/perdas brutos e transições entre classes. Consulte a [metodologia e interpretação](docs/FOREST_DYNAMICS.md).
+8. **Perfil Humano Admin1/Admin2**: indicadores demográficos OCHA 2025 e mobilidade DTM R22 associados por P-code, com perfis provinciais/distritais, mapas temáticos e alocação demográfica indicativa da população exposta a cheias.
 
 ---
 
 ## ✨ Novas Funcionalidades
+
+### 👥 Perfil humano OCHA por P-code
+
+O endpoint `GET /api/simulation/admin-baseline/` entrega indicadores de demografia e mobilidade para 11 províncias e 159 distritos. Use `level=1|2`, `indicator=<chave>` e `include_map=true` para solicitar também a camada temática GEE. A API continua a devolver os perfis se o serviço cartográfico estiver indisponível.
+
+Os dados normalizados estão em `simulation/data/ocha_baseline_2025.json`. Para os regenerar a partir da fonte:
+
+```bash
+pip install -r scripts/requirements-baseline.txt
+python scripts/build_ocha_baseline.py \
+  OCHA_Mozambique_Baseline_Data_2025_HNO_20240815.xlsx \
+  simulation/data/ocha_baseline_2025.json
+```
+
+Valores ausentes permanecem nulos. O indicador de pessoas com deficiência é uma estimativa de planeamento de 15%, e o caseload DTM combina IDPs e retornados disponíveis; nenhum dos dois deve ser interpretado como observação individual ou deslocamento ativo. As tabelas são associadas por P-code; enquanto a geometria OCHA COD não estiver no projeto, a camada GAUL 2015 usa uma correspondência auditável por nome normalizado e informa as áreas não associadas.
 
 ### 🤖 Protótipo do Assistente IA
 O frontend inclui uma interface conversacional e o backend devolve respostas e ações cartográficas demonstrativas, como centrar o mapa ou criar um buffer. A ligação a um LLM e as consultas contextuais ao PostGIS permanecem planeadas; o módulo atual não deve ser apresentado como um assistente analítico operacional.
