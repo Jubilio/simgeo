@@ -38,15 +38,16 @@ transformação interna muito diferentes.
 ## Escala de cálculo
 
 Os tiles são visualizados à resolução nominal de 10 m. Para manter a análise
-interativa, as estatísticas são calculadas em `EPSG:6933` a:
+interativa, as estatísticas são calculadas em `EPSG:4326` a:
 
 - 250 m para Moçambique inteiro;
 - 100 m para uma província;
 - 30 m para uma área GeoJSON personalizada.
 
-O backend envia ao Earth Engine a definição OGC WKT oficial do EPSG:6933,
-evitando incompatibilidades do parser de códigos CRS sem alterar a projeção
-equal-area utilizada nos cálculos.
+As áreas continuam expressas em hectares porque o backend usa
+`ee.Image.pixelArea()`, que calcula a área geodésica de cada pixel em metros
+quadrados. O CRS nativo do Earth Engine evita incompatibilidades do parser com
+definições de projeção personalizadas.
 
 Essa diferença é mostrada na interface e nos metadados da resposta.
 Como o produto é categórico, a avaliação estatística utiliza vizinho mais

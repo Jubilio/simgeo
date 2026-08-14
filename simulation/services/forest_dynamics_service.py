@@ -12,7 +12,7 @@ import ee
 
 from georisksim.gee_auth import initialize_gee
 
-from .equal_area_projection import EQUAL_AREA_CRS_CODE, EQUAL_AREA_CRS_WKT
+from .analysis_projection import ANALYSIS_CRS
 from .mozambique_geometry import get_mozambique_geometry
 
 
@@ -27,7 +27,6 @@ MIN_ANNUAL_OBSERVATIONS = 3
 COUNTRY_ANALYSIS_SCALE_M = 250
 PROVINCE_ANALYSIS_SCALE_M = 100
 CUSTOM_ANALYSIS_SCALE_M = 30
-ANALYSIS_CRS = EQUAL_AREA_CRS_CODE
 MAX_CUSTOM_GEOMETRY_VERTICES = 20_000
 
 CLASS_NAMES = {
@@ -209,7 +208,7 @@ def _reduce_area_bands(image, region, scale):
     return image.reduceRegion(
         reducer=ee.Reducer.sum(),
         geometry=region,
-        crs=EQUAL_AREA_CRS_WKT,
+        crs=ANALYSIS_CRS,
         scale=scale,
         maxPixels=1e9,
         tileScale=16,
@@ -224,7 +223,7 @@ def _transition_areas(mask, class_image, region, scale):
     return area_and_class.reduceRegion(
         reducer=ee.Reducer.sum().group(groupField=1, groupName="class"),
         geometry=region,
-        crs=EQUAL_AREA_CRS_WKT,
+        crs=ANALYSIS_CRS,
         scale=scale,
         maxPixels=1e9,
         tileScale=16,
