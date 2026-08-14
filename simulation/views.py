@@ -1,3 +1,5 @@
+import logging
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -25,6 +27,10 @@ from .services.forest_dynamics_service import (
     get_forest_area_options,
     get_forest_dynamics,
 )
+
+
+logger = logging.getLogger(__name__)
+
 
 class GEEFloodSimulationView(APIView):
     """
@@ -279,6 +285,7 @@ class GEEFloodImpactView(APIView):
         except ValueError as e:
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         except RuntimeError as e:
+            logger.exception("Flood impact computation failed")
             return Response(
                 {"error": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
@@ -329,7 +336,13 @@ class GEEForestDynamicsView(APIView):
             return Response(
                 {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
             )
+        except RuntimeError as exc:
+            logger.exception("Forest dynamics computation failed")
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
         except Exception as exc:
+            logger.exception("Unexpected forest dynamics failure")
             return Response(
                 {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
