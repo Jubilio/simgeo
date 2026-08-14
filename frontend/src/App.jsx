@@ -761,14 +761,25 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3 pointer-events-auto">
-            {/* Botão Terrain 3D */}
+            {/* Alternador entre globo 3D e mapa plano 2D */}
             <button 
               onClick={() => setShowTerrain(!showTerrain)}
               aria-pressed={showTerrain}
-              className={`simgeo-action ${showTerrain ? 'is-active' : ''}`}
+              aria-label={showTerrain ? 'Mudar para mapa plano 2D' : 'Mudar para globo 3D'}
+              title={showTerrain ? 'Globo 3D — mudar para mapa 2D' : 'Mapa 2D — mudar para globo 3D'}
+              className={`simgeo-action w-10 px-0 ${showTerrain ? 'is-active' : ''}`}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-              <span>Vista 3D</span>
+              {showTerrain ? (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" strokeWidth="1.8" />
+                  <path strokeLinecap="round" strokeWidth="1.8" d="M3.5 9h17M3.5 15h17M12 3c2.2 2.45 3.3 5.45 3.3 9S14.2 18.55 12 21M12 3C9.8 5.45 8.7 8.45 8.7 12s1.1 6.55 3.3 9" />
+                </svg>
+              ) : (
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3.5 6.5 8.8 4l6.1 2.5L20.5 4v13.5L15.2 20l-6.1-2.5L3.5 20V6.5Z" />
+                  <path strokeLinecap="round" strokeWidth="1.8" d="M8.9 4v13.5M15.1 6.5V20" />
+                </svg>
+              )}
             </button>
             {/* Botão Limpar Buffer */}
             {bufferData && (
