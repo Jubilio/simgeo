@@ -5,8 +5,10 @@ from rest_framework.test import APIRequestFactory
 
 from simulation.services.cyclone_service import validate_cyclone_parameters
 from simulation.services.flood_impact_service import (
+    EXPOSURE_SCALES_M,
     validate_flood_impact_parameters,
 )
+from simulation.services.analysis_projection import ANALYSIS_CRS
 from simulation.services.forest_dynamics_service import (
     _normalize_custom_geometries,
     validate_forest_dynamics_parameters,
@@ -140,6 +142,10 @@ class CycloneParameterValidationTests(SimpleTestCase):
 
 
 class FloodImpactParameterValidationTests(SimpleTestCase):
+    def test_uses_portable_projection_and_timeout_fallback_scale(self):
+        self.assertEqual(ANALYSIS_CRS, "EPSG:4326")
+        self.assertEqual(EXPOSURE_SCALES_M, (1_000, 2_500))
+
     def test_accepts_supported_glofas_return_period(self):
         self.assertEqual(
             validate_flood_impact_parameters("glofas", "75"),
@@ -277,6 +283,22 @@ class ForestDynamicsViewTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("anterior", response.data["error"])
+
+    @patch("simulation.views.get_forest_dynamics")
+    def test_returns_503_for_earth_engine_failure(self, service_mock):
+        service_mock.side_effect = RuntimeError(
+            "Google Earth Engine temporariamente indisponível."
+        )
+        request = self.factory.post(
+            "/api/simulation/gee/forest-dynamics/",
+            {"start_year": 2020, "end_year": 2024},
+            format="json",
+        )
+
+        response = GEEForestDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("temporariamente", response.data["error"])
 
 
 class NewSimulationViewValidationTests(SimpleTestCase):
