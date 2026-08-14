@@ -8,7 +8,9 @@ import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
 import { AdminBoundaryPanel } from './components/AdminBoundaryPanel';
+import { AdminBaselinePanel } from './components/AdminBaselinePanel';
 import useAdminBoundaryLayers from './hooks/useAdminBoundaryLayers';
+import useAdminBaselineLayer from './hooks/useAdminBaselineLayer';
 import CyclonePanel from './components/CyclonePanel';
 import FloodImpactPanel from './components/FloodImpactPanel';
 import ForestDynamicsPanel from './components/ForestDynamicsPanel';
@@ -148,6 +150,13 @@ export default function App() {
   const [adminSearchLoading, setAdminSearchLoading] = useState(false);
   const adminSearchAbortRef = useRef(null);
 
+  // Perfil humano OCHA por P-code
+  const [adminBaselineActive, setAdminBaselineActive] = useState(false);
+  const [adminBaselineLevel, setAdminBaselineLevel] = useState(2);
+  const [adminBaselineIndicator, setAdminBaselineIndicator] = useState('population_total');
+  const [selectedBaselinePcode, setSelectedBaselinePcode] = useState(null);
+  const baselineFocusAbortRef = useRef(null);
+
   // Tooltip UI
   const [tooltipInfo, setTooltipInfo] = useState(null);
 
@@ -201,6 +210,18 @@ export default function App() {
     nameFilter: adminNameFilter,
     country: 'Mozambique',
     setErrorMessage: setGeeError,
+  });
+
+  const {
+    data: adminBaselineData,
+    layer: adminBaselineLayer,
+    loading: adminBaselineLoading,
+    error: adminBaselineError,
+    retry: retryAdminBaseline,
+  } = useAdminBaselineLayer({
+    active: adminBaselineActive,
+    level: adminBaselineLevel,
+    indicator: adminBaselineIndicator,
   });
 
   // Função para buscar dados da série temporal GLDAS
@@ -282,6 +303,38 @@ export default function App() {
     ));
     setAdminNameFilter(result.name);
     focusMapLocation(result);
+  };
+
+  const handleBaselineAreaSelect = async area => {
+    baselineFocusAbortRef.current?.abort();
+    const controller = new AbortController();
+    baselineFocusAbortRef.current = controller;
+    setSelectedBaselinePcode(area.pcode);
+    const adminLevel = `level${area.level}`;
+    setAdminActiveLevels(previous => (
+      previous.includes(adminLevel) ? previous : [...previous, adminLevel]
+    ));
+    setAdminNameFilter(area.name);
+
+    try {
+      const params = new URLSearchParams({
+        search: area.name,
+        level: adminLevel,
+        country: 'Mozambique',
+        limit: '4',
+      });
+      const response = await axios.get(
+        `${API_BASE_URL}simulation/gee/admin-boundaries/?${params}`,
+        { signal: controller.signal },
+      );
+      const match = (response.data?.results || []).find(result => (
+        result.name.toLocaleLowerCase('pt') === area.name.toLocaleLowerCase('pt')
+      )) || response.data?.results?.[0];
+      if (match) focusMapLocation(match);
+    } catch (requestError) {
+      if (axios.isCancel(requestError)) return;
+      console.warn('Área selecionada, mas sem navegação GEE:', requestError);
+    }
   };
 
   useEffect(() => {
@@ -391,6 +444,7 @@ export default function App() {
     clearTimeout(searchTimeoutRef.current);
     searchAbortRef.current?.abort();
     adminSearchAbortRef.current?.abort();
+    baselineFocusAbortRef.current?.abort();
   }, []);
   
   // Criar Buffer com Turf.js
@@ -475,7 +529,13 @@ export default function App() {
     }
   }), []);
 
-  const mapLayers = [baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers];
+  const mapLayers = [
+    baseMapLayer,
+    ...geeLayers,
+    ...(adminBaselineLayer ? [adminBaselineLayer] : []),
+    ...adminBoundaryLayers,
+    ...vectorLayers,
+  ];
 
   const activeLayerCount = [
     showInfrastructure,
@@ -487,6 +547,7 @@ export default function App() {
     activeCyclone,
     Boolean(floodImpactTileUrl),
     Boolean(forestLayerVisible && forestDynamicsResult?.gee_layer?.tile_url),
+    adminBaselineActive,
   ].filter(Boolean).length + adminActiveLevels.length;
 
   return (
@@ -526,6 +587,24 @@ export default function App() {
               onSelectResult={handleAdminResultSelect}
             />
           </div>
+
+          <AdminBaselinePanel
+            active={adminBaselineActive}
+            setActive={setAdminBaselineActive}
+            level={adminBaselineLevel}
+            setLevel={nextLevel => {
+              setAdminBaselineLevel(nextLevel);
+              setSelectedBaselinePcode(null);
+            }}
+            indicator={adminBaselineIndicator}
+            setIndicator={setAdminBaselineIndicator}
+            data={adminBaselineData}
+            loading={adminBaselineLoading}
+            error={adminBaselineError}
+            selectedPcode={selectedBaselinePcode}
+            onSelectArea={handleBaselineAreaSelect}
+            onRetry={retryAdminBaseline}
+          />
 
           <button 
             onClick={() => setShowInfrastructure(!showInfrastructure)}

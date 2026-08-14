@@ -14,14 +14,91 @@ from simulation.services.forest_dynamics_service import (
     validate_forest_dynamics_parameters,
 )
 from simulation.services.gaul_service import _bbox_from_coordinates, match_admin_names
+from simulation.services.admin_baseline_service import (
+    estimate_exposed_demographics,
+    get_admin_baseline_payload,
+)
 from simulation.services.malaria_service import validate_malaria_parameters
 from simulation.views import (
+    AdminBaselineView,
     GEEAdminBoundariesView,
     GEECycloneView,
     GEEFloodImpactView,
     GEEForestDynamicsView,
     GEEMalariaSuitabilityView,
 )
+
+
+class AdminBaselineServiceTests(SimpleTestCase):
+    def test_builds_admin_levels_and_preserves_national_totals(self):
+        admin1 = get_admin_baseline_payload(level=1, indicator="population_total")
+        admin2 = get_admin_baseline_payload(level=2, indicator="population_total")
+
+        self.assertEqual(len(admin1["areas"]), 11)
+        self.assertEqual(len(admin2["areas"]), 159)
+        self.assertEqual(admin2["national_summary"]["population_total"], 35_163_992)
+        self.assertEqual(admin2["national_summary"]["dtm_caseload"], 1_310_705)
+
+    def test_searches_without_case_or_accent_and_keeps_nulls(self):
+        result = get_admin_baseline_payload(
+            level=2, indicator="population_total", search="mocambique"
+        )
+        self.assertEqual(result["areas"][0]["name"], "Ilha De Moçambique")
+
+        niassa = get_admin_baseline_payload(
+            level=2, indicator="population_total", search="MZ0804"
+        )
+        self.assertIsNone(niassa["areas"][0]["indicator_value"])
+        self.assertEqual(niassa["areas"][0]["data_quality"]["population"], "missing")
+
+    def test_rejects_unknown_indicator(self):
+        with self.assertRaisesMessage(ValueError, "Indicador desconhecido"):
+            get_admin_baseline_payload(level=2, indicator="malaria_cases")
+
+    def test_estimates_hazard_exposure_with_explicit_caveat(self):
+        estimate = estimate_exposed_demographics(10_000)
+
+        self.assertEqual(estimate["scope"]["pcode"], "MZ")
+        self.assertEqual(estimate["estimated_groups"]["female"], 5_144)
+        self.assertEqual(estimate["estimated_groups"]["under_18"], 5_206)
+        self.assertIn("triagem", estimate["caveat"])
+
+
+class AdminBaselineViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch("simulation.views.get_admin_baseline_tiles")
+    def test_returns_data_and_optional_map(self, tiles_mock):
+        tiles_mock.return_value = {
+            "tile_url": "https://earthengine.example/{z}/{x}/{y}",
+            "matched": 150,
+            "unmatched": [],
+        }
+        request = self.factory.get(
+            "/api/simulation/admin-baseline/",
+            {"level": 2, "indicator": "population_total", "include_map": "true"},
+        )
+
+        response = AdminBaselineView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["gee_layer"]["matched"], 150)
+        self.assertEqual(len(response.data["data"]["areas"]), 159)
+
+    @patch("simulation.views.get_admin_baseline_tiles")
+    def test_preserves_profiles_when_map_is_unavailable(self, tiles_mock):
+        tiles_mock.side_effect = RuntimeError("Earth Engine indisponível")
+        request = self.factory.get(
+            "/api/simulation/admin-baseline/",
+            {"level": 1, "indicator": "idps_dtm_r22", "include_map": "true"},
+        )
+
+        response = AdminBaselineView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["data"]["gee_layer"])
+        self.assertIn("indisponível", response.data["data"]["map_error"])
 
 
 class GaulAdminSearchTests(SimpleTestCase):
@@ -331,6 +408,24 @@ class NewSimulationViewValidationTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("Valores suportados", response.data["error"])
+
+    @patch("simulation.views.get_flood_impact")
+    def test_flood_impact_adds_demographic_exposure(self, service_mock):
+        service_mock.return_value = {
+            "gee_layer": {"tile_url": "https://earthengine.example/tiles"},
+            "stats": {"exposed_population": 10_000, "exposed_agriculture_ha": 250},
+        }
+        request = self.factory.post(
+            "/api/simulation/gee/flood-impact/",
+            {"engine": "glofas", "return_period": 100},
+            format="json",
+        )
+
+        response = GEEFloodImpactView.as_view()(request)
+
+        exposure = response.data["data"]["stats"]["demographic_exposure"]
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(exposure["estimated_groups"]["female"], 5_144)
 
     @patch("simulation.views.get_flood_impact")
     def test_flood_impact_view_preserves_timeout_message(self, service_mock):

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from maps.views import AdministrativeBoundaryViewSet, InfrastructureViewSet, FileUploadView
 from simulation.views import (
+    AdminBaselineView,
     GEEFloodSimulationView,
     GEEGroundwaterMapView,
     GEEGroundwaterTimeseriesView,
@@ -38,6 +39,7 @@ class APIRootView(APIView):
                 'simulation_gee_groundwater_ts': request.build_absolute_uri('simulation/gee/groundwater/timeseries/'),
                 'simulation_gee_malaria_suitability': request.build_absolute_uri('simulation/gee/malaria-suitability/'),
                 'simulation_gee_admin_boundaries': request.build_absolute_uri('simulation/gee/admin-boundaries/'),
+                'admin_baseline': request.build_absolute_uri('simulation/admin-baseline/'),
                 'simulation_gee_cyclone': request.build_absolute_uri('simulation/gee/cyclone/'),
                 'simulation_gee_flood_impact': request.build_absolute_uri('simulation/gee/flood-impact/'),
                 'simulation_gee_forest_dynamics': request.build_absolute_uri('simulation/gee/forest-dynamics/'),
@@ -53,6 +55,7 @@ urlpatterns = [
     path('simulation/gee/groundwater/timeseries/', GEEGroundwaterTimeseriesView.as_view(), name='gee-groundwater-ts'),
     path('simulation/gee/malaria-suitability/', GEEMalariaSuitabilityView.as_view(), name='gee-malaria-suitability'),
     path('simulation/gee/admin-boundaries/', GEEAdminBoundariesView.as_view(), name='gee-admin-boundaries'),
+    path('simulation/admin-baseline/', AdminBaselineView.as_view(), name='admin-baseline'),
     path('simulation/gee/cyclone/', GEECycloneView.as_view(), name='gee-cyclone'),
     path('simulation/gee/flood-impact/', GEEFloodImpactView.as_view(), name='gee-flood-impact'),
     path('simulation/gee/forest-dynamics/', GEEForestDynamicsView.as_view(), name='gee-forest-dynamics'),

@@ -165,6 +165,42 @@ export default function FloodImpactPanel({
             <p className="text-[10px] text-slate-500">
               Fontes: WorldPop ~100 m (2020) + ESA WorldCover (classe agrícola). Cálculo de exposição a 100 m.
             </p>
+            {floodStats.demographic_exposure && (
+              <div className="border-t border-slate-700 pt-3">
+                <div className="text-xs font-semibold text-slate-300 mb-2 uppercase tracking-wide">
+                  Perfil humano estimado
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <StatCard
+                    label="Mulheres expostas"
+                    value={floodStats.demographic_exposure.estimated_groups.female}
+                    unit="pessoas"
+                    color="text-fuchsia-300"
+                  />
+                  <StatCard
+                    label="0–17 anos"
+                    value={floodStats.demographic_exposure.estimated_groups.under_18}
+                    unit="pessoas"
+                    color="text-cyan-300"
+                  />
+                  <StatCard
+                    label="60+ anos"
+                    value={floodStats.demographic_exposure.estimated_groups.age_60_plus}
+                    unit="pessoas"
+                    color="text-amber-300"
+                  />
+                  <StatCard
+                    label="PcD — estimativa"
+                    value={floodStats.demographic_exposure.estimated_groups.pwd_planning_estimate}
+                    unit="pessoas"
+                    color="text-violet-300"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-500 mt-2">
+                  {floodStats.demographic_exposure.caveat}
+                </p>
+              </div>
+            )}
             <p className="text-[10px] text-slate-500">
               Resultado de triagem. Não substitui modelação hidráulica local nem avaliação de campo.
             </p>
