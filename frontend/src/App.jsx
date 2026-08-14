@@ -3,7 +3,7 @@ import axios from 'axios';
 import DeckGL from '@deck.gl/react';
 import { _GlobeView as GlobeView, MapView } from '@deck.gl/core';
 import { TileLayer } from '@deck.gl/geo-layers';
-import { BitmapLayer, PolygonLayer } from '@deck.gl/layers';
+import { BitmapLayer } from '@deck.gl/layers';
 import * as turf from '@turf/turf';
 import useMapLayers from './components/MapLayers';
 import useGEELayer from './components/GEELayer';
@@ -33,28 +33,6 @@ const INITIAL_VIEW_STATE = {
   bearing: 0
 };
 const DEFAULT_BUFFER_RADIUS_KM = 5;
-
-const createGlobeSurfaceCells = (step = 15) => {
-  const cells = [];
-  for (let latitude = -90; latitude < 90; latitude += step) {
-    const south = Math.max(latitude, -89.9);
-    const north = Math.min(latitude + step, 89.9);
-    for (let longitude = -180; longitude < 180; longitude += step) {
-      cells.push({
-        latitude: (south + north) / 2,
-        polygon: [
-          [longitude, south],
-          [longitude + step, south],
-          [longitude + step, north],
-          [longitude, north],
-        ],
-      });
-    }
-  }
-  return cells;
-};
-
-const GLOBE_SURFACE_CELLS = createGlobeSurfaceCells();
 
 const coordinatesFromFeature = feature => {
   const geometry = feature?.geometry;
@@ -497,23 +475,7 @@ export default function App() {
     }
   }), []);
 
-  // Superfície oceânica contínua para evitar áreas vazias enquanto os tiles carregam no globo.
-  const globeSurfaceLayer = useMemo(() => new PolygonLayer({
-    id: 'globe-surface',
-    data: GLOBE_SURFACE_CELLS,
-    getPolygon: cell => cell.polygon,
-    getFillColor: cell => {
-      const polarLight = Math.round(Math.abs(cell.latitude) * 0.08);
-      return [5 + polarLight, 18 + polarLight, 37 + polarLight, 255];
-    },
-    filled: true,
-    stroked: false,
-    pickable: false,
-  }), []);
-
-  const mapLayers = showTerrain
-    ? [globeSurfaceLayer, baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers]
-    : [baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers];
+  const mapLayers = [baseMapLayer, ...geeLayers, ...adminBoundaryLayers, ...vectorLayers];
 
   const activeLayerCount = [
     showInfrastructure,
