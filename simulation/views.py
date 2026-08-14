@@ -16,7 +16,7 @@ from .services.malaria_service import (
     DEFAULT_START_YEAR,
     get_malaria_suitability_tiles,
 )
-from .services.gaul_service import get_gaul_admin_tiles
+from .services.gaul_service import get_gaul_admin_tiles, search_gaul_admin_areas
 from .services.cyclone_service import get_cyclone_tiles
 from .services.flood_impact_service import get_flood_impact
 from .services.forest_dynamics_service import (
@@ -205,17 +205,29 @@ class GEEAdminBoundariesView(APIView):
     Parâmetros:
         level       : 'level1' | 'level2'  (default: level1)
         name_filter : string parcial para filtrar pelo nome do admin
+        search      : pesquisa nomes e devolve centro/limites para navegar no mapa
         country     : nome do país em inglês (default: Mozambique)
     """
 
     def get(self, request):
-        level = request.query_params.get('level', 'level1')
+        search_query = request.query_params.get('search', '').strip()
+        level = request.query_params.get('level')
         name_filter = request.query_params.get('name_filter', '')
         country = request.query_params.get('country', 'Mozambique')
 
         try:
+            if search_query:
+                limit = int(request.query_params.get('limit', 8))
+                results = search_gaul_admin_areas(
+                    query=search_query,
+                    level=level or None,
+                    country_filter=country,
+                    limit=limit,
+                )
+                return Response({'status': 'success', 'results': results})
+
             gee_data = get_gaul_admin_tiles(
-                level=level,
+                level=level or 'level1',
                 name_filter=name_filter,
                 country_filter=country,
             )
