@@ -364,6 +364,29 @@ select:focus-visible {
   background: rgba(8, 14, 27, 0.5);
 }
 
+.admin-boundary-search-wrap {
+  position: relative;
+}
+
+.admin-boundary-search-submit {
+  display: grid;
+  place-items: center;
+  flex: none;
+  padding: 0;
+  border: 0;
+  color: #73829a;
+  background: transparent;
+}
+
+.admin-boundary-search-submit:not(:disabled) {
+  color: #aa9fff;
+  cursor: pointer;
+}
+
+.admin-boundary-search-submit:disabled {
+  cursor: default;
+}
+
 .admin-boundary-search:focus-within {
   border-color: rgba(139, 123, 255, 0.5);
 }
@@ -393,6 +416,69 @@ select:focus-visible {
   color: #738097;
   font-size: 9px;
   background: transparent;
+}
+
+.admin-boundary-spinner,
+.simgeo-search-spinner {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border: 2px solid rgba(139, 123, 255, 0.22);
+  border-top-color: #aa9fff;
+  border-radius: 50%;
+  animation: simgeo-spin 700ms linear infinite;
+}
+
+.admin-boundary-results {
+  position: absolute;
+  z-index: 80;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  max-height: 190px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--simgeo-border-strong);
+  border-radius: 11px;
+  background: rgba(8, 14, 27, 0.98);
+  box-shadow: 0 16px 34px rgba(1, 5, 16, 0.48);
+  backdrop-filter: blur(18px);
+}
+
+.admin-boundary-result {
+  width: 100%;
+  display: block;
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  background: transparent;
+  transition: background 140ms ease;
+}
+
+.admin-boundary-result:hover,
+.admin-boundary-result:focus-visible {
+  outline: 0;
+  background: rgba(139, 123, 255, 0.12);
+}
+
+.admin-boundary-result-name {
+  display: block;
+  color: #e8edf5;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.admin-boundary-result-type,
+.admin-boundary-empty {
+  display: block;
+  margin-top: 2px;
+  color: #718097;
+  font-size: 8px;
+}
+
+.admin-boundary-empty {
+  padding: 7px 8px;
 }
 
 .admin-boundary-legend {
@@ -481,7 +567,9 @@ select:focus-visible {
 /* Map stage */
 .simgeo-map-stage {
   min-width: 0;
-  background: #040812;
+  background:
+    radial-gradient(circle at 52% 48%, rgba(27, 74, 118, 0.32) 0%, rgba(7, 21, 42, 0.18) 28%, transparent 54%),
+    radial-gradient(circle at 50% 50%, #071326 0%, #030711 62%, #01030a 100%);
 }
 
 .simgeo-map-stage::after {
@@ -562,6 +650,10 @@ select:focus-visible {
   border-radius: 15px !important;
   background: rgba(11, 18, 33, 0.96) !important;
   box-shadow: var(--simgeo-shadow);
+}
+
+@keyframes simgeo-spin {
+  to { transform: rotate(360deg); }
 }
 
 .simgeo-action {
