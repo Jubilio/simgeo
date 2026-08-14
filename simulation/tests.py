@@ -11,13 +11,63 @@ from simulation.services.forest_dynamics_service import (
     _normalize_custom_geometries,
     validate_forest_dynamics_parameters,
 )
+from simulation.services.gaul_service import _bbox_from_coordinates, match_admin_names
 from simulation.services.malaria_service import validate_malaria_parameters
 from simulation.views import (
+    GEEAdminBoundariesView,
     GEECycloneView,
     GEEFloodImpactView,
     GEEForestDynamicsView,
     GEEMalariaSuitabilityView,
 )
+
+
+class GaulAdminSearchTests(SimpleTestCase):
+    def test_matches_names_without_case_or_accent_sensitivity(self):
+        names = ['Pemba', 'Cidade de Pemba', 'Ilha de Moçambique', 'Nampula']
+
+        self.assertEqual(match_admin_names('pemba', names), ['Pemba', 'Cidade de Pemba'])
+        self.assertEqual(
+            match_admin_names('mocambique', names),
+            ['Ilha de Moçambique'],
+        )
+
+    def test_builds_bbox_from_nested_coordinates(self):
+        coordinates = [[[32, -25], [40, -25], [40, -10], [32, -10], [32, -25]]]
+        self.assertEqual(
+            _bbox_from_coordinates(coordinates),
+            [32.0, -25.0, 40.0, -10.0],
+        )
+
+
+class GaulAdminSearchViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch('simulation.views.search_gaul_admin_areas')
+    def test_returns_navigation_results(self, search_mock):
+        search_mock.return_value = [{
+            'id': 'level2:Pemba',
+            'name': 'Pemba',
+            'level': 'level2',
+            'centroid': [40.52, -12.97],
+            'bounds': [40.4, -13.1, 40.65, -12.8],
+        }]
+        request = self.factory.get(
+            '/api/simulation/gee/admin-boundaries/',
+            {'search': 'pemba', 'country': 'Mozambique', 'limit': 8},
+        )
+
+        response = GEEAdminBoundariesView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['results'][0]['name'], 'Pemba')
+        search_mock.assert_called_once_with(
+            query='pemba',
+            level=None,
+            country_filter='Mozambique',
+            limit=8,
+        )
 
 
 class MalariaParameterValidationTests(SimpleTestCase):
