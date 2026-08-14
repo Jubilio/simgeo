@@ -12,6 +12,7 @@ from simulation.views import (
     GEEMalariaSuitabilityView,
     GEEAdminBoundariesView,
     GEECycloneView,
+    GEEForestDynamicsView,
     GEEFloodImpactView,
 )
 
@@ -39,6 +40,7 @@ class APIRootView(APIView):
                 'simulation_gee_admin_boundaries': request.build_absolute_uri('simulation/gee/admin-boundaries/'),
                 'simulation_gee_cyclone': request.build_absolute_uri('simulation/gee/cyclone/'),
                 'simulation_gee_flood_impact': request.build_absolute_uri('simulation/gee/flood-impact/'),
+                'simulation_gee_forest_dynamics': request.build_absolute_uri('simulation/gee/forest-dynamics/'),
             }
         })
 
@@ -53,6 +55,7 @@ urlpatterns = [
     path('simulation/gee/admin-boundaries/', GEEAdminBoundariesView.as_view(), name='gee-admin-boundaries'),
     path('simulation/gee/cyclone/', GEECycloneView.as_view(), name='gee-cyclone'),
     path('simulation/gee/flood-impact/', GEEFloodImpactView.as_view(), name='gee-flood-impact'),
+    path('simulation/gee/forest-dynamics/', GEEForestDynamicsView.as_view(), name='gee-forest-dynamics'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('agent/', include('ai_agent.urls')),
     path('', include(router.urls)),

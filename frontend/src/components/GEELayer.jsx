@@ -46,6 +46,7 @@ export default function useGEELayer({
   activeMalaria, malariaStartYear, malariaEndYear, malariaMonth,
   activeCyclone, cycloneStart, cycloneEnd, cycloneLayerType,
   floodImpactTileUrl,
+  forestDynamicsTileUrl,
   setErrorMessage 
 }) {
   const [floodTileUrl, setFloodTileUrl] = useState(null);
@@ -155,6 +156,7 @@ export default function useGEELayer({
     makeGEETileLayer('gee-malaria-layer', activeMalaria ? malariaTileUrl : null, 0.8),
     makeGEETileLayer('gee-cyclone-layer', activeCyclone ? cycloneTileUrl : null, 0.8),
     makeGEETileLayer('gee-flood-impact-layer', floodImpactTileUrl, 0.75),
+    makeGEETileLayer('gee-forest-dynamics-layer', forestDynamicsTileUrl, 0.82),
   ].filter(Boolean);
 
   return layers;

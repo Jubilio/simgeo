@@ -19,6 +19,12 @@ from .services.malaria_service import (
 from .services.gaul_service import get_gaul_admin_tiles
 from .services.cyclone_service import get_cyclone_tiles
 from .services.flood_impact_service import get_flood_impact
+from .services.forest_dynamics_service import (
+    DEFAULT_END_YEAR as FOREST_DEFAULT_END_YEAR,
+    DEFAULT_START_YEAR as FOREST_DEFAULT_START_YEAR,
+    get_forest_area_options,
+    get_forest_dynamics,
+)
 
 class GEEFloodSimulationView(APIView):
     """
@@ -263,4 +269,51 @@ class GEEFloodImpactView(APIView):
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GEEForestDynamicsView(APIView):
+    """Analyze annual tree-cover stock, flows and transitions."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        try:
+            scope = request.query_params.get("scope", "province")
+            return Response(
+                {
+                    "status": "success",
+                    "scope": scope,
+                    "areas": get_forest_area_options(scope),
+                }
+            )
+        except ValueError as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        try:
+            result = get_forest_dynamics(
+                start_year=request.data.get(
+                    "start_year", FOREST_DEFAULT_START_YEAR
+                ),
+                end_year=request.data.get("end_year", FOREST_DEFAULT_END_YEAR),
+                scope=request.data.get("scope", "country"),
+                area_name=request.data.get("area_name"),
+                geometry=request.data.get("geometry"),
+            )
+            return Response({"status": "success", "data": result})
+        except (TypeError, ValueError) as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )

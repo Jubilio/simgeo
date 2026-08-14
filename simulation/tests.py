@@ -7,10 +7,15 @@ from simulation.services.cyclone_service import validate_cyclone_parameters
 from simulation.services.flood_impact_service import (
     validate_flood_impact_parameters,
 )
+from simulation.services.forest_dynamics_service import (
+    _normalize_custom_geometries,
+    validate_forest_dynamics_parameters,
+)
 from simulation.services.malaria_service import validate_malaria_parameters
 from simulation.views import (
     GEECycloneView,
     GEEFloodImpactView,
+    GEEForestDynamicsView,
     GEEMalariaSuitabilityView,
 )
 
@@ -104,6 +109,124 @@ class FloodImpactParameterValidationTests(SimpleTestCase):
         )
         with self.assertRaisesMessage(ValueError, "obrigatórios"):
             validate_flood_impact_parameters("sentinel1", 100)
+
+
+class ForestDynamicsParameterValidationTests(SimpleTestCase):
+    def test_accepts_country_and_province_analysis(self):
+        self.assertEqual(
+            validate_forest_dynamics_parameters(2016, 2025),
+            (2016, 2025, "country", None),
+        )
+        self.assertEqual(
+            validate_forest_dynamics_parameters(
+                "2018", "2024", "province", "Cabo Delgado"
+            ),
+            (2018, 2024, "province", "Cabo Delgado"),
+        )
+        self.assertEqual(
+            validate_forest_dynamics_parameters(
+                2020,
+                2024,
+                "custom",
+                "Área piloto",
+                {"type": "Polygon", "coordinates": []},
+            ),
+            (2020, 2024, "custom", "Área piloto"),
+        )
+
+    def test_rejects_invalid_period_and_missing_province(self):
+        with self.assertRaisesMessage(ValueError, "anterior"):
+            validate_forest_dynamics_parameters(2024, 2024)
+        with self.assertRaisesMessage(ValueError, "2016"):
+            validate_forest_dynamics_parameters(2015, 2024)
+        with self.assertRaisesMessage(ValueError, "area_name"):
+            validate_forest_dynamics_parameters(2020, 2024, "province")
+        with self.assertRaisesMessage(ValueError, "geometry"):
+            validate_forest_dynamics_parameters(2020, 2024, "custom")
+
+    def test_normalizes_custom_feature_collection(self):
+        polygon = {
+            "type": "Polygon",
+            "coordinates": [[[32, -20], [33, -20], [33, -19], [32, -20]]],
+        }
+        self.assertEqual(
+            _normalize_custom_geometries(
+                {
+                    "type": "FeatureCollection",
+                    "features": [{"type": "Feature", "geometry": polygon}],
+                }
+            ),
+            [polygon],
+        )
+
+    def test_rejects_non_polygon_custom_geometry(self):
+        with self.assertRaisesMessage(ValueError, "Polygon"):
+            _normalize_custom_geometries(
+                {"type": "Point", "coordinates": [32, -20]}
+            )
+
+
+class ForestDynamicsViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @patch("simulation.views.get_forest_area_options")
+    def test_returns_province_options(self, options_mock):
+        options_mock.return_value = ["Cabo Delgado", "Nampula"]
+        request = self.factory.get(
+            "/api/simulation/gee/forest-dynamics/", {"scope": "province"}
+        )
+
+        response = GEEForestDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["areas"], ["Cabo Delgado", "Nampula"])
+        options_mock.assert_called_once_with("province")
+
+    @patch("simulation.views.get_forest_dynamics")
+    def test_returns_forest_analysis(self, service_mock):
+        service_mock.return_value = {
+            "gee_layer": {"tile_url": "https://earthengine.example/{z}/{x}/{y}"},
+            "stats": {"net_change_ha": 98},
+            "timeseries": [],
+            "transitions": {},
+        }
+        request = self.factory.post(
+            "/api/simulation/gee/forest-dynamics/",
+            {
+                "start_year": 2016,
+                "end_year": 2025,
+                "scope": "province",
+                "area_name": "Cabo Delgado",
+            },
+            format="json",
+        )
+
+        response = GEEForestDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["stats"]["net_change_ha"], 98)
+        service_mock.assert_called_once_with(
+            start_year=2016,
+            end_year=2025,
+            scope="province",
+            area_name="Cabo Delgado",
+            geometry=None,
+        )
+
+    @patch("simulation.views.get_forest_dynamics")
+    def test_returns_400_for_invalid_parameters(self, service_mock):
+        service_mock.side_effect = ValueError("start_year deve ser anterior")
+        request = self.factory.post(
+            "/api/simulation/gee/forest-dynamics/",
+            {"start_year": 2025, "end_year": 2025},
+            format="json",
+        )
+
+        response = GEEForestDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("anterior", response.data["error"])
 
 
 class NewSimulationViewValidationTests(SimpleTestCase):
