@@ -24,6 +24,7 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 4. **Módulo Analítico e de Vulnerabilidade**: Integração de índices de pobreza e segurança alimentar (IPC).
 5. **Dashboard Multi-Risco**: Cálculo em tempo real: `Risco = Perigo (Hazard) × Exposição × Vulnerabilidade`.
 6. **Aptidão Ambiental para a Malária (Moçambique)**: Índice anual ou mensal no Google Earth Engine, combinando temperatura, precipitação, água superficial, vegetação e elevação. O produto representa aptidão ambiental e não carga da doença. Consulte a [metodologia e limitações](docs/MALARIA_SUITABILITY.md).
+7. **Dinâmica Florestal**: Monitorização anual da cobertura arbórea com Dynamic World, distinguindo estoque, saldo líquido, ganhos/perdas brutos e transições entre classes. Consulte a [metodologia e interpretação](docs/FOREST_DYNAMICS.md).
 
 ---
 

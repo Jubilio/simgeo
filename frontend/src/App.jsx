@@ -11,6 +11,7 @@ import { AdminBoundaryPanel } from './components/AdminBoundaryPanel';
 import useAdminBoundaryLayers from './hooks/useAdminBoundaryLayers';
 import CyclonePanel from './components/CyclonePanel';
 import FloodImpactPanel from './components/FloodImpactPanel';
+import ForestDynamicsPanel from './components/ForestDynamicsPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import { API_BASE_URL } from './config';
@@ -87,6 +88,11 @@ export default function App() {
   const [floodImpactTileUrl, setFloodImpactTileUrl] = useState(null);
   const [floodStats, setFloodStats] = useState(null);
   const [floodLoading, setFloodLoading] = useState(false);
+
+  // Dinâmica Florestal
+  const [showForestDynamicsPanel, setShowForestDynamicsPanel] = useState(false);
+  const [forestDynamicsResult, setForestDynamicsResult] = useState(null);
+  const [forestLayerVisible, setForestLayerVisible] = useState(true);
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
@@ -151,6 +157,9 @@ export default function App() {
     cycloneEnd,
     cycloneLayerType,
     floodImpactTileUrl,
+    forestDynamicsTileUrl: forestLayerVisible
+      ? forestDynamicsResult?.gee_layer?.tile_url
+      : null,
     setErrorMessage: setGeeError
   });
 
@@ -319,6 +328,7 @@ export default function App() {
     showMalaria,
     activeCyclone,
     Boolean(floodImpactTileUrl),
+    Boolean(forestLayerVisible && forestDynamicsResult?.gee_layer?.tile_url),
   ].filter(Boolean).length + adminActiveLevels.length;
 
   return (
@@ -505,6 +515,20 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            <button
+              onClick={() => setShowForestDynamicsPanel(true)}
+              aria-pressed={Boolean(forestLayerVisible && forestDynamicsResult)}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${forestLayerVisible && forestDynamicsResult ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 21V10m0 0C8 10 5.5 7.8 5 4c4.3-.2 7 1.8 7 6zm0 4c3.8 0 6.3-2 7-5.8-4.1-.4-6.7 1.4-7 5.8zM8 21h8" />
+                </svg>
+                Dinâmica Florestal
+              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
+            </button>
 
             <button 
               onClick={() => setShowLithology(!showLithology)}
@@ -816,6 +840,7 @@ export default function App() {
 
           {(simGEEFlood || showLULC || showLithology || showGroundwater ||
             showMalaria || activeCyclone || floodImpactTileUrl ||
+            (forestLayerVisible && forestDynamicsResult) ||
             adminActiveLevels.length > 0) && geeError && (
             <div className="absolute bottom-20 left-6 z-[1000]">
               <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
@@ -887,6 +912,20 @@ export default function App() {
                 setFloodLoading(false);
               }
             }}
+          />
+        </div>
+      )}
+
+      {/* Painel de Dinâmica Florestal */}
+      {showForestDynamicsPanel && (
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-5" role="presentation">
+          <ForestDynamicsPanel
+            onClose={() => setShowForestDynamicsPanel(false)}
+            result={forestDynamicsResult}
+            onResult={setForestDynamicsResult}
+            layerVisible={forestLayerVisible}
+            onLayerVisibilityChange={setForestLayerVisible}
+            setErrorMessage={setGeeError}
           />
         </div>
       )}
