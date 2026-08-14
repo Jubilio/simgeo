@@ -4,6 +4,7 @@ import ee
 
 from georisksim.gee_auth import initialize_gee
 
+from .equal_area_projection import EQUAL_AREA_CRS_CODE, EQUAL_AREA_CRS_WKT
 from .mozambique_geometry import get_mozambique_geometry
 
 
@@ -12,7 +13,7 @@ GLOFAS_RETURN_PERIODS = {10, 20, 50, 75, 100, 200, 500}
 MAX_SENTINEL1_INTERVAL_DAYS = 30
 FLOOD_DEPTH_THRESHOLD_M = 0.15
 EXPOSURE_SCALE_M = 500
-EXPOSURE_CRS = "EPSG:6933"
+EXPOSURE_CRS = EQUAL_AREA_CRS_CODE
 AGGREGATION_MAX_PIXELS = 4096
 EXPOSURE_TILE_SCALE = 8
 
@@ -108,7 +109,7 @@ def _aggregate_exposure_layers(flood_mask, population, cropland):
     population density multiplied by pixel area returns people, while crop
     fraction multiplied by pixel area returns square metres.
     """
-    analysis_projection = ee.Projection(EXPOSURE_CRS).atScale(
+    analysis_projection = ee.Projection(EQUAL_AREA_CRS_WKT).atScale(
         EXPOSURE_SCALE_M
     )
 
@@ -210,7 +211,7 @@ def get_flood_impact(
             reducer=ee.Reducer.sum(),
             geometry=mozambique,
             scale=EXPOSURE_SCALE_M,
-            crs=EXPOSURE_CRS,
+            crs=EQUAL_AREA_CRS_WKT,
             bestEffort=True,
             maxPixels=25_000_000,
             tileScale=EXPOSURE_TILE_SCALE,
