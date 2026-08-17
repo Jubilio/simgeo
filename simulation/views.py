@@ -26,6 +26,12 @@ from .services.admin_baseline_service import (
 )
 from .services.cyclone_service import get_cyclone_tiles
 from .services.flood_impact_service import get_flood_impact
+from .services.google_flood_service import (
+    GoogleFloodError,
+    get_google_flood_forecast,
+    get_google_flood_service_status,
+)
+from .services.google_flood_context_service import enrich_google_flood_context
 from .services.forest_dynamics_service import (
     DEFAULT_END_YEAR as FOREST_DEFAULT_END_YEAR,
     DEFAULT_START_YEAR as FOREST_DEFAULT_START_YEAR,
@@ -35,6 +41,12 @@ from .services.forest_dynamics_service import (
 
 
 logger = logging.getLogger(__name__)
+
+
+def _query_flag(value, default=False):
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
 class AdminBaselineView(APIView):
@@ -337,6 +349,60 @@ class GEEFloodImpactView(APIView):
         except Exception as e:
             return Response(
                 {"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GoogleFloodStatusView(APIView):
+    """Expose readiness without ever returning the server-side API key."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response({
+            "status": "success",
+            "data": get_google_flood_service_status(),
+        })
+
+
+class GoogleFloodForecastView(APIView):
+    """Serve normalized live forecasts and optional local Admin1/Admin2 context."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        try:
+            payload = get_google_flood_forecast(
+                country_code=request.query_params.get("country", "MZ"),
+                include_polygons=_query_flag(
+                    request.query_params.get("include_polygons"), default=True
+                ),
+                force_refresh=_query_flag(request.query_params.get("refresh")),
+            )
+            if _query_flag(
+                request.query_params.get("include_context"), default=True
+            ):
+                payload["local_context"] = enrich_google_flood_context(payload)
+            return Response({"status": "success", "data": payload})
+        except ValueError as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except GoogleFloodError as exc:
+            logger.warning("Google Flood forecast unavailable: %s", exc)
+            return Response(
+                {
+                    "error": str(exc),
+                    "retryable": exc.retryable,
+                    "fallback": get_google_flood_service_status(),
+                },
+                status=exc.status_code,
+            )
+        except Exception as exc:
+            logger.exception("Unexpected Google Flood forecast failure")
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 

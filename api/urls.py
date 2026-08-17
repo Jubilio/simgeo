@@ -15,6 +15,8 @@ from simulation.views import (
     GEECycloneView,
     GEEForestDynamicsView,
     GEEFloodImpactView,
+    GoogleFloodForecastView,
+    GoogleFloodStatusView,
 )
 
 router = DefaultRouter()
@@ -42,6 +44,8 @@ class APIRootView(APIView):
                 'admin_baseline': request.build_absolute_uri('simulation/admin-baseline/'),
                 'simulation_gee_cyclone': request.build_absolute_uri('simulation/gee/cyclone/'),
                 'simulation_gee_flood_impact': request.build_absolute_uri('simulation/gee/flood-impact/'),
+                'google_flood_status': request.build_absolute_uri('simulation/google-floods/status/'),
+                'google_flood_forecast': request.build_absolute_uri('simulation/google-floods/forecast/'),
                 'simulation_gee_forest_dynamics': request.build_absolute_uri('simulation/gee/forest-dynamics/'),
             }
         })
@@ -58,6 +62,8 @@ urlpatterns = [
     path('simulation/admin-baseline/', AdminBaselineView.as_view(), name='admin-baseline'),
     path('simulation/gee/cyclone/', GEECycloneView.as_view(), name='gee-cyclone'),
     path('simulation/gee/flood-impact/', GEEFloodImpactView.as_view(), name='gee-flood-impact'),
+    path('simulation/google-floods/status/', GoogleFloodStatusView.as_view(), name='google-flood-status'),
+    path('simulation/google-floods/forecast/', GoogleFloodForecastView.as_view(), name='google-flood-forecast'),
     path('simulation/gee/forest-dynamics/', GEEForestDynamicsView.as_view(), name='gee-forest-dynamics'),
     path('upload/', FileUploadView.as_view(), name='maps-upload'),
     path('agent/', include('ai_agent.urls')),

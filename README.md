@@ -26,6 +26,7 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 6. **Aptidão Ambiental para a Malária (Moçambique)**: Índice anual ou mensal no Google Earth Engine, combinando temperatura, precipitação, água superficial, vegetação e elevação. O produto representa aptidão ambiental e não carga da doença. Consulte a [metodologia e limitações](docs/MALARIA_SUITABILITY.md).
 7. **Dinâmica Florestal**: Monitorização anual da cobertura arbórea com Dynamic World, distinguindo estoque, saldo líquido, ganhos/perdas brutos e transições entre classes. Consulte a [metodologia e interpretação](docs/FOREST_DYNAMICS.md).
 8. **Perfil Humano Admin1/Admin2**: indicadores demográficos OCHA 2025 e mobilidade DTM R22 associados por P-code, com perfis provinciais/distritais, mapas temáticos e alocação demográfica indicativa da população exposta a cheias.
+9. **Google Flood Forecasting**: alertas fluviais, cheias rápidas e eventos significativos em tempo real, com polígonos convertidos para GeoJSON, contexto Admin1/Admin2 e contingência para o Flood Hub. Consulte a [configuração e as limitações](docs/GOOGLE_FLOOD_FORECASTING.md).
 
 ---
 
@@ -45,6 +46,12 @@ python scripts/build_ocha_baseline.py \
 ```
 
 Valores ausentes permanecem nulos. O indicador de pessoas com deficiência é uma estimativa de planeamento de 15%, e o caseload DTM combina IDPs e retornados disponíveis; nenhum dos dois deve ser interpretado como observação individual ou deslocamento ativo. As tabelas são associadas por P-code; enquanto a geometria OCHA COD não estiver no projeto, a camada GAUL 2015 usa uma correspondência auditável por nome normalizado e informa as áreas não associadas.
+
+### 🌊 Previsões Google Floods
+
+Os endpoints `GET /api/simulation/google-floods/status/` e `GET /api/simulation/google-floods/forecast/` mantêm a API key exclusivamente no Django. Quando o acesso oficial ainda não está aprovado, o painel continua útil ao abrir o Flood Hub na posição atual do mapa. Quando a API está ativa, o SimGeo mostra previsões e geometrias e cruza-as, quando disponível, com limites PostGIS, perfis OCHA e infraestruturas locais.
+
+Este produto é apoio à decisão e alerta precoce. Não substitui avisos oficiais do INGD/INAM, modelação hidráulica local nem verificação de campo. Veja [Google Flood Forecasting no SimGeo](docs/GOOGLE_FLOOD_FORECASTING.md).
 
 ### 🤖 Protótipo do Assistente IA
 O frontend inclui uma interface conversacional e o backend devolve respostas e ações cartográficas demonstrativas, como centrar o mapa ou criar um buffer. A ligação a um LLM e as consultas contextuais ao PostGIS permanecem planeadas; o módulo atual não deve ser apresentado como um assistente analítico operacional.
