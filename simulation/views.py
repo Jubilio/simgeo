@@ -38,6 +38,12 @@ from .services.forest_dynamics_service import (
     get_forest_area_options,
     get_forest_dynamics,
 )
+from .services.livestock_dynamics_service import (
+    DEFAULT_END_YEAR as LIVESTOCK_DEFAULT_END_YEAR,
+    DEFAULT_START_YEAR as LIVESTOCK_DEFAULT_START_YEAR,
+    get_livestock_dynamics,
+    get_livestock_dynamics_config,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -454,6 +460,46 @@ class GEEForestDynamicsView(APIView):
             )
         except Exception as exc:
             logger.exception("Unexpected forest dynamics failure")
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class GEELivestockDynamicsView(APIView):
+    """Analyze Global Pasture Watch livestock and pasture dynamics."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response(
+            {"status": "success", "data": get_livestock_dynamics_config()}
+        )
+
+    def post(self, request):
+        try:
+            result = get_livestock_dynamics(
+                start_year=request.data.get(
+                    "start_year", LIVESTOCK_DEFAULT_START_YEAR
+                ),
+                end_year=request.data.get(
+                    "end_year", LIVESTOCK_DEFAULT_END_YEAR
+                ),
+                species=request.data.get("species", "cattle"),
+                admin_level=request.data.get("admin_level", 1),
+            )
+            return Response({"status": "success", "data": result})
+        except (TypeError, ValueError) as exc:
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        except RuntimeError as exc:
+            logger.exception("Livestock dynamics computation failed")
+            return Response(
+                {"error": str(exc)}, status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+        except Exception as exc:
+            logger.exception("Unexpected livestock dynamics failure")
             return Response(
                 {"error": str(exc)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
