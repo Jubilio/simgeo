@@ -93,6 +93,25 @@ CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'Africa/Maputo'
 
+# Google Flood Forecasting API (server-side only)
+GOOGLE_FLOOD_API_ENABLED = config(
+    'GOOGLE_FLOOD_API_ENABLED', default=False, cast=bool
+)
+GOOGLE_FLOOD_API_KEY = config('GOOGLE_FLOOD_API_KEY', default='')
+GOOGLE_FLOOD_API_BASE_URL = config(
+    'GOOGLE_FLOOD_API_BASE_URL',
+    default='https://floodforecasting.googleapis.com/v1',
+)
+GOOGLE_FLOOD_API_TIMEOUT_SECONDS = config(
+    'GOOGLE_FLOOD_API_TIMEOUT_SECONDS', default=15, cast=float
+)
+GOOGLE_FLOOD_API_CACHE_SECONDS = config(
+    'GOOGLE_FLOOD_API_CACHE_SECONDS', default=600, cast=int
+)
+GOOGLE_FLOOD_API_MAX_POLYGONS = config(
+    'GOOGLE_FLOOD_API_MAX_POLYGONS', default=24, cast=int
+)
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},

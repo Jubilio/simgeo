@@ -1,12 +1,19 @@
 from unittest.mock import patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIRequestFactory
 
 from simulation.services.cyclone_service import validate_cyclone_parameters
 from simulation.services.flood_impact_service import (
     EXPOSURE_SCALES_M,
     validate_flood_impact_parameters,
+)
+from simulation.services.google_flood_service import (
+    GoogleFloodConfigurationError,
+    build_flood_hub_url,
+    get_google_flood_forecast,
+    parse_kml_to_geojson,
+    validate_country_code,
 )
 from simulation.services.analysis_projection import ANALYSIS_CRS
 from simulation.services.forest_dynamics_service import (
@@ -26,6 +33,8 @@ from simulation.views import (
     GEEFloodImpactView,
     GEEForestDynamicsView,
     GEEMalariaSuitabilityView,
+    GoogleFloodForecastView,
+    GoogleFloodStatusView,
 )
 
 
@@ -242,6 +251,106 @@ class FloodImpactParameterValidationTests(SimpleTestCase):
         )
         with self.assertRaisesMessage(ValueError, "obrigatórios"):
             validate_flood_impact_parameters("sentinel1", 100)
+
+
+class GoogleFloodServiceTests(SimpleTestCase):
+    KML = """<?xml version="1.0" encoding="UTF-8"?>
+    <kml xmlns="http://www.opengis.net/kml/2.2"><Document><Placemark>
+      <Polygon><outerBoundaryIs><LinearRing><coordinates>
+        32,-20,0 33,-20,0 33,-19,0 32,-20,0
+      </coordinates></LinearRing></outerBoundaryIs></Polygon>
+    </Placemark></Document></kml>"""
+
+    def test_validates_country_and_builds_public_hub_link(self):
+        self.assertEqual(validate_country_code("mz"), "MZ")
+        self.assertIn("/l/-12.970000/40.520000/8.00", build_flood_hub_url(-12.97, 40.52, 8))
+        with self.assertRaisesMessage(ValueError, "ISO 3166"):
+            validate_country_code("MOZ")
+
+    def test_converts_google_kml_to_geojson(self):
+        feature = parse_kml_to_geojson(
+            self.KML, properties={"alert_type": "flash_flood"}
+        )
+
+        self.assertEqual(feature["geometry"]["type"], "Polygon")
+        self.assertEqual(feature["geometry"]["coordinates"][0][0], [32.0, -20.0])
+        self.assertEqual(feature["properties"]["alert_type"], "flash_flood")
+
+    @override_settings(
+        GOOGLE_FLOOD_API_ENABLED=True,
+        GOOGLE_FLOOD_API_KEY="server-only-test-key",
+        GOOGLE_FLOOD_API_MAX_POLYGONS=0,
+    )
+    @patch("simulation.services.google_flood_service._request_json")
+    def test_normalizes_live_alerts_without_exposing_key(self, request_mock):
+        responses = {
+            "/floodStatus:searchLatestFloodStatusByArea": {
+                "floodStatuses": [{
+                    "gaugeId": "gauge-1",
+                    "gaugeLocation": {"latitude": -17.8, "longitude": 35.1},
+                    "severity": "SEVERE",
+                    "qualityVerified": True,
+                    "forecastTrend": "RISE",
+                }]
+            },
+            "/flashFloods:search": {"flashFloodEvents": []},
+            "/significantEvents:search": {"significantEvents": []},
+        }
+        request_mock.side_effect = lambda path, **kwargs: responses[path]
+
+        result = get_google_flood_forecast(include_polygons=False)
+
+        self.assertEqual(result["summary"]["riverine_active"], 1)
+        self.assertEqual(result["riverine"][0]["severity_label"], "Severa")
+        self.assertNotIn("server-only-test-key", str(result))
+
+
+class GoogleFloodViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    @override_settings(GOOGLE_FLOOD_API_ENABLED=False, GOOGLE_FLOOD_API_KEY="secret")
+    def test_status_reports_fallback_without_exposing_key(self):
+        request = self.factory.get("/api/simulation/google-floods/status/")
+
+        response = GoogleFloodStatusView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["data"]["ready"])
+        self.assertNotIn("secret", str(response.data))
+
+    @patch("simulation.views.enrich_google_flood_context")
+    @patch("simulation.views.get_google_flood_forecast")
+    def test_forecast_returns_normalized_data_and_local_context(
+        self, forecast_mock, context_mock
+    ):
+        forecast_mock.return_value = {
+            "summary": {"riverine_active": 1},
+            "feature_collection": {"type": "FeatureCollection", "features": []},
+        }
+        context_mock.return_value = {"available": True, "admin_areas": []}
+        request = self.factory.get(
+            "/api/simulation/google-floods/forecast/",
+            {"country": "MZ", "include_polygons": "true"},
+        )
+
+        response = GoogleFloodForecastView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.data["data"]["local_context"]["available"])
+        forecast_mock.assert_called_once_with(
+            country_code="MZ", include_polygons=True, force_refresh=False
+        )
+
+    @patch("simulation.views.get_google_flood_forecast")
+    def test_forecast_preserves_configuration_fallback(self, forecast_mock):
+        forecast_mock.side_effect = GoogleFloodConfigurationError("Acesso pendente")
+        request = self.factory.get("/api/simulation/google-floods/forecast/")
+
+        response = GoogleFloodForecastView.as_view()(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("fallback", response.data)
 
 
 class ForestDynamicsParameterValidationTests(SimpleTestCase):

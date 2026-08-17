@@ -14,6 +14,9 @@ import useAdminBaselineLayer from './hooks/useAdminBaselineLayer';
 import CyclonePanel from './components/CyclonePanel';
 import FloodImpactPanel from './components/FloodImpactPanel';
 import ForestDynamicsPanel from './components/ForestDynamicsPanel';
+import GoogleFloodForecastPanel from './components/GoogleFloodForecastPanel';
+import useGoogleFloodForecast from './hooks/useGoogleFloodForecast';
+import useGoogleFloodLayers from './hooks/useGoogleFloodLayers';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import { API_BASE_URL } from './config';
@@ -117,6 +120,10 @@ export default function App() {
   const [floodImpactTileUrl, setFloodImpactTileUrl] = useState(null);
   const [floodStats, setFloodStats] = useState(null);
   const [floodLoading, setFloodLoading] = useState(false);
+
+  // Google Flood Forecasting (previsões operacionais)
+  const [showGoogleFloodPanel, setShowGoogleFloodPanel] = useState(false);
+  const [googleFloodLayerActive, setGoogleFloodLayerActive] = useState(false);
 
   // Dinâmica Florestal
   const [showForestDynamicsPanel, setShowForestDynamicsPanel] = useState(false);
@@ -222,6 +229,16 @@ export default function App() {
     active: adminBaselineActive,
     level: adminBaselineLevel,
     indicator: adminBaselineIndicator,
+  });
+
+  const googleFlood = useGoogleFloodForecast({
+    enabled: showGoogleFloodPanel || googleFloodLayerActive,
+  });
+
+  const googleFloodLayers = useGoogleFloodLayers({
+    active: googleFloodLayerActive,
+    featureCollection: googleFlood.data?.feature_collection,
+    setTooltipInfo,
   });
 
   // Função para buscar dados da série temporal GLDAS
@@ -472,6 +489,27 @@ export default function App() {
     setFloodStats(null);
   };
 
+  const focusGoogleFloodEvent = eventId => {
+    const features = (googleFlood.data?.feature_collection?.features || [])
+      .filter(feature => feature.properties?.event_id === eventId);
+    if (!features.length) return;
+    try {
+      const bounds = turf.bbox(turf.featureCollection(features));
+      const longitude = (bounds[0] + bounds[2]) / 2;
+      const latitude = (bounds[1] + bounds[3]) / 2;
+      setViewState(previous => ({
+        ...previous,
+        longitude,
+        latitude,
+        zoom: zoomForBounds(bounds),
+        transitionDuration: 1500,
+      }));
+      setGoogleFloodLayerActive(true);
+    } catch (focusError) {
+      console.warn('Não foi possível centrar o evento Google Flood:', focusError);
+    }
+  };
+
   // Enviar Mensagem para o Assistente IA
   const handleSendChatMessage = async () => {
     if (!chatInput.trim()) return;
@@ -532,6 +570,7 @@ export default function App() {
   const mapLayers = [
     baseMapLayer,
     ...geeLayers,
+    ...googleFloodLayers,
     ...(adminBaselineLayer ? [adminBaselineLayer] : []),
     ...adminBoundaryLayers,
     ...vectorLayers,
@@ -546,9 +585,12 @@ export default function App() {
     showMalaria,
     activeCyclone,
     Boolean(floodImpactTileUrl),
+    googleFloodLayerActive,
     Boolean(forestLayerVisible && forestDynamicsResult?.gee_layer?.tile_url),
     adminBaselineActive,
   ].filter(Boolean).length + adminActiveLevels.length;
+
+  const floodHubUrl = `https://sites.research.google/floods/l/${Number(viewState.latitude).toFixed(6)}/${Number(viewState.longitude).toFixed(6)}/${Math.max(1, Number(viewState.zoom || 5)).toFixed(2)}`;
 
   return (
     <>
@@ -1050,6 +1092,23 @@ export default function App() {
                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
                <span>Impacto de cheias</span>
              </button>
+             <button
+               onClick={() => setShowGoogleFloodPanel(true)}
+               className={`simgeo-action is-alert ${googleFloodLayerActive ? 'is-live' : ''}`}
+               aria-pressed={googleFloodLayerActive}
+             >
+               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 15.5c2.5-2 4.5-2 7 0s4.5 2 7 0M4 11c2.5-2 4.5-2 7 0s4.5 2 7 0M12 3v4m-2.5-1.5L12 3l2.5 2.5" />
+               </svg>
+               <span>Alertas Google</span>
+               {googleFlood.data?.summary && (
+                 <span className="simgeo-alert-count">
+                   {(googleFlood.data.summary.riverine_active || 0)
+                     + (googleFlood.data.summary.flash_flood_events || 0)
+                     + (googleFlood.data.summary.significant_events || 0)}
+                 </span>
+               )}
+             </button>
           </div>
         </div>
 
@@ -1092,6 +1151,15 @@ export default function App() {
               <span className="block">Modo</span>
               <strong>{showTerrain ? 'Globo 3D' : 'Mapa 2D'}</strong>
             </div>
+            {googleFloodLayerActive ? (
+              <>
+                <span className="simgeo-hud-divider" aria-hidden="true" />
+                <div>
+                  <span className="block">Fonte</span>
+                  <strong>Google Floods</strong>
+                </div>
+              </>
+            ) : null}
           </div>
 
           {(simGEEFlood || showLULC || showLithology || showGroundwater ||
@@ -1169,6 +1237,23 @@ export default function App() {
                 setFloodLoading(false);
               }
             }}
+          />
+        </div>
+      )}
+
+      {showGoogleFloodPanel && (
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-5" role="presentation">
+          <GoogleFloodForecastPanel
+            onClose={() => setShowGoogleFloodPanel(false)}
+            serviceStatus={googleFlood.serviceStatus}
+            data={googleFlood.data}
+            loading={googleFlood.loading}
+            error={googleFlood.error}
+            layerActive={googleFloodLayerActive}
+            onLayerActiveChange={setGoogleFloodLayerActive}
+            onRefresh={googleFlood.refresh}
+            onFocusEvent={focusGoogleFloodEvent}
+            floodHubUrl={floodHubUrl}
           />
         </div>
       )}

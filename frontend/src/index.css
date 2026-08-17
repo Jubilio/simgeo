@@ -1038,6 +1038,31 @@ button.simgeo-switch {
   background: rgba(17, 110, 137, 0.82);
 }
 
+.simgeo-action.is-alert {
+  position: relative;
+  color: #f0fbff;
+  border-color: rgba(45, 212, 191, 0.28);
+  background: linear-gradient(135deg, rgba(13, 91, 103, 0.9), rgba(26, 67, 118, 0.88));
+}
+
+.simgeo-action.is-alert.is-live {
+  border-color: rgba(94, 234, 212, 0.5);
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.08), 0 10px 28px rgba(5, 150, 105, 0.2);
+}
+
+.simgeo-alert-count {
+  min-width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  padding-inline: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+  color: #06251d;
+  font-size: 9px;
+  background: #6ee7c7;
+}
+
 .simgeo-map-hud {
   position: absolute;
   z-index: 1000;
@@ -1103,6 +1128,489 @@ button.simgeo-switch {
   font-weight: 750;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+}
+
+/* Google Flood Forecasting */
+.google-flood-panel {
+  width: min(560px, 100%);
+  max-height: min(880px, 92vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #dce5f2;
+}
+
+.google-flood-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 23px 18px;
+  border-bottom: 1px solid var(--simgeo-border);
+  background:
+    radial-gradient(circle at 14% 0%, rgba(45, 212, 191, 0.13), transparent 45%),
+    rgba(8, 15, 29, 0.4);
+}
+
+.google-flood-heading {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.google-flood-heading h2 {
+  margin: 3px 0 1px;
+  color: #f8fbff;
+  font-size: 19px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.google-flood-heading p {
+  margin: 0;
+  color: #7f8da4;
+  font-size: 10px;
+}
+
+.google-flood-mark {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 14px;
+  color: #76f3d2;
+  background: linear-gradient(145deg, rgba(45, 212, 191, 0.16), rgba(34, 211, 238, 0.07));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.08), 0 10px 26px rgba(7, 89, 85, 0.18);
+}
+
+.google-flood-mark svg {
+  width: 23px;
+  height: 23px;
+}
+
+.google-flood-close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: #7f8da4;
+  background: transparent;
+}
+
+.google-flood-close:hover {
+  color: #fff;
+  border-color: var(--simgeo-border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.google-flood-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.google-flood-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 22px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 234, 212, 0.28) transparent;
+}
+
+.google-flood-readiness {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 14px;
+  background: rgba(15, 25, 43, 0.72);
+}
+
+.google-flood-readiness.is-ready {
+  border-color: rgba(45, 212, 191, 0.23);
+  background: rgba(13, 79, 75, 0.13);
+}
+
+.google-flood-readiness.is-pending {
+  border-color: rgba(251, 191, 36, 0.2);
+  background: rgba(120, 53, 15, 0.1);
+}
+
+.google-flood-pulse {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 0 5px rgba(251, 191, 36, 0.08), 0 0 14px rgba(251, 191, 36, 0.6);
+}
+
+.google-flood-readiness.is-ready .google-flood-pulse {
+  background: #5eead4;
+  box-shadow: 0 0 0 5px rgba(45, 212, 191, 0.08), 0 0 14px rgba(45, 212, 191, 0.6);
+}
+
+.google-flood-readiness strong {
+  display: block;
+  color: #edf5fb;
+  font-size: 11px;
+}
+
+.google-flood-readiness p {
+  margin: 2px 0 0;
+  color: #8491a5;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.google-flood-fallback {
+  margin-top: 13px;
+  padding: 15px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 15px;
+  background: rgba(18, 29, 49, 0.62);
+}
+
+.google-flood-fallback p {
+  margin: 0 0 12px;
+  color: #9aa7ba;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.google-flood-primary-action {
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid rgba(94, 234, 212, 0.25);
+  border-radius: 11px;
+  color: #052d28;
+  font-size: 11px;
+  font-weight: 750;
+  background: linear-gradient(135deg, #75eed0, #38c9b5);
+}
+
+.google-flood-primary-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+.google-flood-loading,
+.google-flood-error {
+  margin-top: 13px;
+  padding: 12px 13px;
+  border-radius: 13px;
+  font-size: 10px;
+}
+
+.google-flood-loading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #9fb0c5;
+  border: 1px solid var(--simgeo-border);
+  background: rgba(14, 24, 42, 0.64);
+}
+
+.google-flood-error {
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.22);
+  background: rgba(127, 29, 29, 0.12);
+}
+
+.google-flood-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.google-flood-layer-toggle,
+.google-flood-refresh {
+  min-height: 37px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 11px;
+  color: #9eacc0;
+  font-size: 10px;
+  background: rgba(18, 29, 49, 0.62);
+}
+
+.google-flood-layer-toggle {
+  flex: 1;
+  padding: 0 12px;
+  text-align: left;
+}
+
+.google-flood-layer-toggle.is-active {
+  color: #d9fff5;
+  border-color: rgba(45, 212, 191, 0.28);
+}
+
+.google-flood-refresh {
+  padding: 0 11px;
+}
+
+.google-flood-refresh:hover {
+  color: #e9f9ff;
+  border-color: rgba(94, 234, 212, 0.28);
+}
+
+.google-flood-refresh svg {
+  width: 14px;
+  height: 14px;
+}
+
+.google-flood-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.google-flood-metric {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 13px;
+  background: rgba(12, 22, 39, 0.7);
+}
+
+.google-flood-metric span {
+  min-height: 22px;
+  display: block;
+  color: #75839a;
+  font-size: 8px;
+  line-height: 1.35;
+}
+
+.google-flood-metric strong {
+  display: block;
+  margin-top: 4px;
+  color: #eef4fa;
+  font-size: 17px;
+}
+
+.google-flood-metric.is-cyan strong { color: #67e8f9; }
+.google-flood-metric.is-orange strong { color: #fdba74; }
+.google-flood-metric.is-magenta strong { color: #e879f9; }
+.google-flood-metric.is-violet strong { color: #c4b5fd; }
+
+.google-flood-calm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 13px;
+  padding: 12px 13px;
+  border: 1px solid rgba(45, 212, 191, 0.18);
+  border-radius: 13px;
+  background: rgba(13, 79, 75, 0.09);
+}
+
+.google-flood-calm strong {
+  color: #b8f5e7;
+  font-size: 10px;
+}
+
+.google-flood-calm span {
+  color: #718197;
+  font-size: 8px;
+}
+
+.google-flood-section,
+.google-flood-context {
+  margin-top: 16px;
+}
+
+.google-flood-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.google-flood-section-title span {
+  color: #dbe6f3;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.google-flood-section-title small {
+  color: #68768c;
+  font-size: 8px;
+}
+
+.google-flood-event {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+  padding: 10px 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.google-flood-event:hover {
+  transform: translateX(2px);
+  border-color: var(--simgeo-border);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.google-flood-event > span:nth-child(2) {
+  min-width: 0;
+}
+
+.google-flood-event strong,
+.google-flood-event small {
+  display: block;
+}
+
+.google-flood-event strong {
+  color: #e6edf6;
+  font-size: 10px;
+}
+
+.google-flood-event small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #75839a;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.google-flood-event > svg {
+  width: 14px;
+  height: 14px;
+  color: #64748b;
+}
+
+.google-flood-event-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #67e8f9;
+  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+}
+
+.google-flood-event-dot.is-flash {
+  background: #fb923c;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+}
+
+.google-flood-event-dot.is-significant {
+  background: #e879f9;
+  box-shadow: 0 0 10px rgba(217, 70, 239, 0.5);
+}
+
+.google-flood-context {
+  padding: 13px;
+  border: 1px solid rgba(139, 123, 255, 0.2);
+  border-radius: 15px;
+  background: radial-gradient(circle at 100% 0%, rgba(139, 123, 255, 0.1), transparent 45%), rgba(16, 25, 43, 0.64);
+}
+
+.google-flood-context-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.google-flood-context-stats div {
+  padding: 8px;
+  border: 1px solid var(--simgeo-border);
+  border-radius: 10px;
+  background: rgba(8, 15, 28, 0.42);
+}
+
+.google-flood-context-stats strong,
+.google-flood-context-stats span {
+  display: block;
+}
+
+.google-flood-context-stats strong {
+  color: #c4b5fd;
+  font-size: 14px;
+}
+
+.google-flood-context-stats span {
+  margin-top: 2px;
+  color: #718097;
+  font-size: 8px;
+}
+
+.google-flood-area-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.google-flood-area-chips span {
+  padding: 4px 7px;
+  border: 1px solid rgba(139, 123, 255, 0.17);
+  border-radius: 999px;
+  color: #a99fff;
+  font-size: 8px;
+  background: rgba(139, 123, 255, 0.06);
+}
+
+.google-flood-context > p {
+  margin: 9px 0 0;
+  color: #718097;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.google-flood-warnings {
+  margin-top: 13px;
+  padding: 10px 11px;
+  border: 1px solid rgba(251, 191, 36, 0.15);
+  border-radius: 11px;
+  color: #c7a867;
+  font-size: 8px;
+  background: rgba(120, 53, 15, 0.07);
+}
+
+.google-flood-warnings ul {
+  margin: 7px 0 0 15px;
+  line-height: 1.45;
+}
+
+.google-flood-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 17px;
+  padding-top: 12px;
+  border-top: 1px solid var(--simgeo-border);
+  color: #5f6d82;
+  font-size: 8px;
+}
+
+.google-flood-footer a {
+  color: #67e8f9;
 }
 
 .simgeo-chat-trigger {
