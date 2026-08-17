@@ -20,6 +20,11 @@ from simulation.services.forest_dynamics_service import (
     _normalize_custom_geometries,
     validate_forest_dynamics_parameters,
 )
+from simulation.services.livestock_dynamics_service import (
+    _format_admin_rows,
+    get_livestock_dynamics_config,
+    validate_livestock_dynamics_parameters,
+)
 from simulation.services.gaul_service import _bbox_from_coordinates, match_admin_names
 from simulation.services.admin_baseline_service import (
     estimate_exposed_demographics,
@@ -32,6 +37,7 @@ from simulation.views import (
     GEECycloneView,
     GEEFloodImpactView,
     GEEForestDynamicsView,
+    GEELivestockDynamicsView,
     GEEMalariaSuitabilityView,
     GoogleFloodForecastView,
     GoogleFloodStatusView,
@@ -482,6 +488,125 @@ class ForestDynamicsViewTests(SimpleTestCase):
         )
 
         response = GEEForestDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("temporariamente", response.data["error"])
+
+
+class LivestockDynamicsParameterValidationTests(SimpleTestCase):
+    def test_accepts_supported_period_species_and_admin_level(self):
+        self.assertEqual(
+            validate_livestock_dynamics_parameters(
+                "2000", "2022", "goat", "2"
+            ),
+            (2000, 2022, "goat", 2),
+        )
+
+    def test_rejects_invalid_period_species_and_admin_level(self):
+        with self.assertRaisesMessage(ValueError, "entre 2000 e 2022"):
+            validate_livestock_dynamics_parameters(1999, 2022)
+        with self.assertRaisesMessage(ValueError, "species"):
+            validate_livestock_dynamics_parameters(2015, 2022, "camel")
+        with self.assertRaisesMessage(ValueError, "admin_level"):
+            validate_livestock_dynamics_parameters(2015, 2022, "cattle", 3)
+
+    def test_config_exposes_gpw_options_and_admin_hierarchy(self):
+        config = get_livestock_dynamics_config()
+
+        self.assertEqual(config["years"]["max"], 2022)
+        self.assertIn(
+            {"value": "buffalo", "label": "Búfalos"}, config["species"]
+        )
+        self.assertEqual(len(config["admin1"]), 11)
+
+    def test_admin_rows_are_ranked_and_joined_to_ocha_pcodes(self):
+        rows = _format_admin_rows(
+            [
+                {
+                    "name": "Cabo Delgado",
+                    "parent_name": "Mozambique",
+                    "livestock_start": 100,
+                    "livestock_end": 120,
+                    "pasture_end_km2": 20,
+                },
+                {
+                    "name": "Gaza",
+                    "parent_name": "Mozambique",
+                    "livestock_start": 300,
+                    "livestock_end": 360,
+                    "pasture_end_km2": 30,
+                },
+            ],
+            admin_level=1,
+            national_end=480,
+        )
+
+        self.assertEqual(rows[0]["name"], "Gaza")
+        self.assertEqual(rows[0]["pcode"], "MZ02")
+        self.assertEqual(rows[1]["pcode"], "MZ01")
+        self.assertEqual(rows[1]["pasture_pressure"], 6)
+
+
+class LivestockDynamicsViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+
+    def test_get_returns_module_configuration(self):
+        request = self.factory.get(
+            "/api/simulation/gee/livestock-dynamics/"
+        )
+
+        response = GEELivestockDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["years"]["min"], 2000)
+
+    @patch("simulation.views.get_livestock_dynamics")
+    def test_post_returns_analysis(self, service_mock):
+        service_mock.return_value = {
+            "gee_layers": {
+                "headcount": {
+                    "tile_url": "https://earthengine.example/{z}/{x}/{y}"
+                }
+            },
+            "stats": {"livestock_end": 1000},
+            "timeseries": [],
+            "admin_summary": [],
+        }
+        request = self.factory.post(
+            "/api/simulation/gee/livestock-dynamics/",
+            {
+                "start_year": 2015,
+                "end_year": 2022,
+                "species": "cattle",
+                "admin_level": 1,
+            },
+            format="json",
+        )
+
+        response = GEELivestockDynamicsView.as_view()(request)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["data"]["stats"]["livestock_end"], 1000)
+        service_mock.assert_called_once_with(
+            start_year=2015,
+            end_year=2022,
+            species="cattle",
+            admin_level=1,
+        )
+
+    @patch("simulation.views.get_livestock_dynamics")
+    def test_post_returns_503_for_earth_engine_failure(self, service_mock):
+        service_mock.side_effect = RuntimeError(
+            "Google Earth Engine temporariamente indisponível."
+        )
+        request = self.factory.post(
+            "/api/simulation/gee/livestock-dynamics/",
+            {"start_year": 2015, "end_year": 2022},
+            format="json",
+        )
+
+        response = GEELivestockDynamicsView.as_view()(request)
 
         self.assertEqual(response.status_code, 503)
         self.assertIn("temporariamente", response.data["error"])

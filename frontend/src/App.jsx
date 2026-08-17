@@ -14,6 +14,7 @@ import useAdminBaselineLayer from './hooks/useAdminBaselineLayer';
 import CyclonePanel from './components/CyclonePanel';
 import FloodImpactPanel from './components/FloodImpactPanel';
 import ForestDynamicsPanel from './components/ForestDynamicsPanel';
+import LivestockDynamicsPanel from './components/LivestockDynamicsPanel';
 import GoogleFloodForecastPanel from './components/GoogleFloodForecastPanel';
 import useGoogleFloodForecast from './hooks/useGoogleFloodForecast';
 import useGoogleFloodLayers from './hooks/useGoogleFloodLayers';
@@ -129,6 +130,12 @@ export default function App() {
   const [showForestDynamicsPanel, setShowForestDynamicsPanel] = useState(false);
   const [forestDynamicsResult, setForestDynamicsResult] = useState(null);
   const [forestLayerVisible, setForestLayerVisible] = useState(true);
+
+  // Dinâmica Pecuária e Pastagens (Global Pasture Watch)
+  const [showLivestockDynamicsPanel, setShowLivestockDynamicsPanel] = useState(false);
+  const [livestockDynamicsResult, setLivestockDynamicsResult] = useState(null);
+  const [livestockLayerVisible, setLivestockLayerVisible] = useState(true);
+  const [livestockMapMode, setLivestockMapMode] = useState('headcount');
   
   // Estado para Upload
   const [uploadFile, setUploadFile] = useState(null);
@@ -208,6 +215,9 @@ export default function App() {
     floodImpactTileUrl,
     forestDynamicsTileUrl: forestLayerVisible
       ? forestDynamicsResult?.gee_layer?.tile_url
+      : null,
+    livestockDynamicsTileUrl: livestockLayerVisible
+      ? livestockDynamicsResult?.gee_layers?.[livestockMapMode]?.tile_url
       : null,
     setErrorMessage: setGeeError
   });
@@ -587,6 +597,7 @@ export default function App() {
     Boolean(floodImpactTileUrl),
     googleFloodLayerActive,
     Boolean(forestLayerVisible && forestDynamicsResult?.gee_layer?.tile_url),
+    Boolean(livestockLayerVisible && livestockDynamicsResult?.gee_layers?.[livestockMapMode]?.tile_url),
     adminBaselineActive,
   ].filter(Boolean).length + adminActiveLevels.length;
 
@@ -808,6 +819,20 @@ export default function App() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 21V10m0 0C8 10 5.5 7.8 5 4c4.3-.2 7 1.8 7 6zm0 4c3.8 0 6.3-2 7-5.8-4.1-.4-6.7 1.4-7 5.8zM8 21h8" />
                 </svg>
                 Dinâmica Florestal
+              </div>
+              <span className="simgeo-switch" aria-hidden="true" />
+            </button>
+
+            <button
+              onClick={() => setShowLivestockDynamicsPanel(true)}
+              aria-pressed={Boolean(livestockLayerVisible && livestockDynamicsResult)}
+              className={`simgeo-layer-toggle w-full flex items-center justify-between px-3 py-2.5 transition-all border ${livestockLayerVisible && livestockDynamicsResult ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : 'text-slate-400 hover:text-slate-200 border-transparent'}`}
+            >
+              <div className="flex items-center gap-3 text-sm">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.7" d="M5 13.5V9.8c0-2.2 1.8-4 4-4h4.5c2.1 0 3.8 1.5 4.2 3.5l.3 1.7h1.5v3H18l-.7 4H15l-.4-3H9.4L9 18H6.7L6 14.5H4v-1h1ZM8 6 6 3.5M15.5 6 18 3.8M9 10h.01" />
+                </svg>
+                Pecuária e Pastagens
               </div>
               <span className="simgeo-switch" aria-hidden="true" />
             </button>
@@ -1165,6 +1190,7 @@ export default function App() {
           {(simGEEFlood || showLULC || showLithology || showGroundwater ||
             showMalaria || activeCyclone || floodImpactTileUrl ||
             (forestLayerVisible && forestDynamicsResult) ||
+            (livestockLayerVisible && livestockDynamicsResult) ||
             adminActiveLevels.length > 0) && geeError && (
             <div className="absolute bottom-20 left-6 z-[1000]">
               <div className="bg-slate-900/90 backdrop-blur-md border border-amber-500/50 p-4 rounded-xl shadow-xl max-w-sm text-xs text-amber-200 space-y-1">
@@ -1267,6 +1293,22 @@ export default function App() {
             onResult={setForestDynamicsResult}
             layerVisible={forestLayerVisible}
             onLayerVisibilityChange={setForestLayerVisible}
+            setErrorMessage={setGeeError}
+          />
+        </div>
+      )}
+
+      {/* Painel de Dinâmica Pecuária e Pastagens */}
+      {showLivestockDynamicsPanel && (
+        <div className="simgeo-dialog-backdrop flex items-center justify-center p-5" role="presentation">
+          <LivestockDynamicsPanel
+            onClose={() => setShowLivestockDynamicsPanel(false)}
+            result={livestockDynamicsResult}
+            onResult={setLivestockDynamicsResult}
+            layerVisible={livestockLayerVisible}
+            onLayerVisibilityChange={setLivestockLayerVisible}
+            mapMode={livestockMapMode}
+            onMapModeChange={setLivestockMapMode}
             setErrorMessage={setGeeError}
           />
         </div>

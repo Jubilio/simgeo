@@ -27,6 +27,7 @@ O sistema é construído sobre uma arquitetura moderna e open-source orientada a
 7. **Dinâmica Florestal**: Monitorização anual da cobertura arbórea com Dynamic World, distinguindo estoque, saldo líquido, ganhos/perdas brutos e transições entre classes. Consulte a [metodologia e interpretação](docs/FOREST_DYNAMICS.md).
 8. **Perfil Humano Admin1/Admin2**: indicadores demográficos OCHA 2025 e mobilidade DTM R22 associados por P-code, com perfis provinciais/distritais, mapas temáticos e alocação demográfica indicativa da população exposta a cheias.
 9. **Google Flood Forecasting**: alertas fluviais, cheias rápidas e eventos significativos em tempo real, com polígonos convertidos para GeoJSON, contexto Admin1/Admin2 e contingência para o Flood Hub. Consulte a [configuração e as limitações](docs/GOOGLE_FLOOD_FORECASTING.md).
+10. **Dinâmica Pecuária e Pastagens**: séries anuais Global Pasture Watch para bovinos, búfalos, caprinos, ovinos e equinos, combinadas com classes de pastagem, pressão territorial e rankings Admin1/Admin2. Consulte a [metodologia e interpretação](docs/LIVESTOCK_PASTURE_DYNAMICS.md).
 
 ---
 
@@ -52,6 +53,12 @@ Valores ausentes permanecem nulos. O indicador de pessoas com deficiência é um
 Os endpoints `GET /api/simulation/google-floods/status/` e `GET /api/simulation/google-floods/forecast/` mantêm a API key exclusivamente no Django. Quando o acesso oficial ainda não está aprovado, o painel continua útil ao abrir o Flood Hub na posição atual do mapa. Quando a API está ativa, o SimGeo mostra previsões e geometrias e cruza-as, quando disponível, com limites PostGIS, perfis OCHA e infraestruturas locais.
 
 Este produto é apoio à decisão e alerta precoce. Não substitui avisos oficiais do INGD/INAM, modelação hidráulica local nem verificação de campo. Veja [Google Flood Forecasting no SimGeo](docs/GOOGLE_FLOOD_FORECASTING.md).
+
+### 🐄 Dinâmica pecuária e pastagens
+
+O endpoint `GET /api/simulation/gee/livestock-dynamics/` expõe a configuração e `POST /api/simulation/gee/livestock-dynamics/` calcula séries 2000–2022, mapas de efetivo e mudança, classes e mudanças de pastagem, pressão indicativa e rankings provinciais ou distritais. Os resultados são ligados ao perfil OCHA por correspondência administrativa para disponibilizar P-code e contexto humano.
+
+O efetivo a 1 km é uma distribuição modelada e ajustada à FAOSTAT, não um censo ou localização observada de rebanhos. Consulte [Dinâmica Pecuária e Pastagens](docs/LIVESTOCK_PASTURE_DYNAMICS.md) antes de interpretar resultados subnacionais.
 
 ### 🤖 Protótipo do Assistente IA
 O frontend inclui uma interface conversacional e o backend devolve respostas e ações cartográficas demonstrativas, como centrar o mapa ou criar um buffer. A ligação a um LLM e as consultas contextuais ao PostGIS permanecem planeadas; o módulo atual não deve ser apresentado como um assistente analítico operacional.
