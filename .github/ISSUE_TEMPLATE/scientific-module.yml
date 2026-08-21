@@ -1,0 +1,54 @@
+name: Scientific module
+description: Propor um novo simulador, índice ou mudança metodológica no SimGeo
+title: "[Scientific module]: "
+labels: ["scientific-method", "enhancement"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Pergunta científica
+      description: Qual pergunta espacial ou temporal o módulo deve responder?
+    validations:
+      required: true
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decisão apoiada e usos proibidos
+      description: Indique o uso decisório permitido e o que não poderá ser inferido.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Dados, versões e licença
+      description: Liste datasets, coleções/bandas, período, resolução e licença.
+    validations:
+      required: true
+  - type: textarea
+    id: method
+    attributes:
+      label: Método proposto
+      description: Explique equações, limiares, CRS, escala, agregação e valores ausentes.
+    validations:
+      required: true
+  - type: textarea
+    id: reference
+    attributes:
+      label: Caso de referência
+      description: Informe área, entrada, resultado esperado, tolerância e comparação independente.
+    validations:
+      required: true
+  - type: textarea
+    id: failure_modes
+    attributes:
+      label: Falhas e limitações previsíveis
+      description: Inclua timeout, quota, cobertura, vieses, geometrias e interpretação indevida.
+    validations:
+      required: true
+  - type: checkboxes
+    id: accountability
+    attributes:
+      label: Responsabilidade
+      options:
+        - label: Comprometo-me a rever o método e não delegar a validação científica à IA.
+          required: true
