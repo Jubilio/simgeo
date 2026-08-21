@@ -28,7 +28,24 @@ Key conventions & notes for agents
 - GIS C libraries (GDAL/GEOS) are required on Windows (OSGeo4W or QGIS). Follow `SETUP_GUIDE.md` for `GDAL_LIBRARY_PATH` and `GEOS_LIBRARY_PATH`.
 - Prefer linking to existing docs instead of duplicating content; only add concise, non-obvious guidance here.
 - Tests: run `python manage.py test` for Django tests.
+- Scientific registry: run `python scripts/validate_scientific_specs.py` and
+  `python -m unittest scripts.tests.test_validate_scientific_specs`.
+- Frontend validation: run `cd frontend`, `npm run lint` and `npm run build`.
 - When changing models, create and run migrations: `python manage.py makemigrations` + `migrate`.
+
+Scientific module workflow
+
+- Read `docs/SCIENTIFIC_DEVELOPMENT_FRAMEWORK.md` before changing a simulator,
+  index, dataset, weight, threshold, CRS, scale or interpretation.
+- Update `docs/scientific-modules/registry.json` and the module methodology in
+  the same change as the code.
+- Keep hazard, exposure, vulnerability, impact and contextual totals distinct.
+- Return the effective dataset version, period, unit, CRS/scale, disclaimer and
+  fallback in API metadata whenever applicable.
+- Add a regression test for every scientific or operational bug. Mocks validate
+  contracts, not scientific correctness; declare the actual V0–V4 evidence.
+- Record cross-module decisions in `docs/DECISIONS.md` and material unresolved
+  limitations in `docs/KNOWN_ISSUES.md`.
 
 Common tasks an agent may be asked to perform
 
@@ -36,9 +53,5 @@ Common tasks an agent may be asked to perform
 - Add management commands under `maps/management/commands/` for data imports.
 - Work with Earth Engine integration under `georisksim/gee_auth.py` and `simulation/services/`.
 
-Suggested next agent customizations
-
-- Create a `skills/spatial-uploads` agent to assist with Shapefile/GeoJSON import pipelines.
-- Create a `skills/simgeo-chatbot` agent to help maintain the AI assistant components under `ai_agent/`.
-
-If anything here is unclear or you'd like a separate, more detailed instruction file for frontend/backend/tests, tell me which area to focus on next.
+Pull requests must use the repository checklist, report all validation that was
+actually run and disclose AI assistance together with the human verification.

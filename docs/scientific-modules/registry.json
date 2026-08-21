@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0",
+  "updated": "2026-08-21",
+  "validation_scale": "docs/SCIENTIFIC_DEVELOPMENT_FRAMEWORK.md",
+  "modules": [
+    {
+      "id": "flood-impact",
+      "title": "Impacto de cheias",
+      "status": "screening",
+      "scientific_question": "Que área, população modelada e área agrícola podem estar expostas ao cenário de inundação selecionado?",
+      "decision_use": "Triagem territorial e priorização de verificação e análise detalhada.",
+      "not_for": "Previsão operacional, estimativa de perdas ou substituição de modelação hidráulica e validação de campo.",
+      "service": "simulation/services/flood_impact_service.py",
+      "methodology": "docs/scientific-modules/specs/FLOOD_IMPACT.md",
+      "endpoints": [
+        "POST /api/simulation/gee/flood-impact/"
+      ],
+      "spatial_unit": "Raster em Moçambique; estatísticas nacionais agregadas a 1000 m com fallback explícito a 2500 m.",
+      "temporal_unit": "Período de retorno GLOFAS ou intervalo de evento Sentinel-1 de até 30 dias.",
+      "data_sources": [
+        "JRC/CEMS_GLOFAS/FloodHazard/v2_1",
+        "COPERNICUS/S1_GRD",
+        "WorldPop/GP/100m/pop (2020, MOZ)",
+        "ESA/WorldCover/v100 (2020)"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "planned",
+        "tests": [
+          "simulation.tests.FloodImpactParameterValidationTests",
+          "simulation.tests.NewSimulationViewValidationTests"
+        ]
+      }
+    },
+    {
+      "id": "cyclone-retrospective",
+      "title": "Análise retrospetiva de ciclones",
+      "status": "screening",
+      "scientific_question": "Qual foi a precipitação acumulada ou o máximo horário do vento a 10 m durante o intervalo selecionado?",
+      "decision_use": "Contextualização retrospetiva de eventos e seleção de áreas para análise de impacto.",
+      "not_for": "Previsão de trajetória, rajada máxima local, categoria oficial ou substituição de avisos do INAM/INGD.",
+      "service": "simulation/services/cyclone_service.py",
+      "methodology": "docs/scientific-modules/specs/CYCLONE_RETROSPECTIVE.md",
+      "endpoints": [
+        "POST /api/simulation/gee/cyclone/"
+      ],
+      "spatial_unit": "Raster recortado a Moçambique na resolução efetiva do dataset selecionado.",
+      "temporal_unit": "Intervalo histórico de até 30 dias.",
+      "data_sources": [
+        "NASA/GPM_L3/IMERG_V07",
+        "ECMWF/ERA5_LAND/HOURLY"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "planned",
+        "tests": [
+          "simulation.tests.CycloneParameterValidationTests",
+          "simulation.tests.NewSimulationViewValidationTests"
+        ]
+      }
+    },
+    {
+      "id": "malaria-suitability",
+      "title": "Aptidão ambiental para a malária",
+      "status": "screening",
+      "scientific_question": "Onde temperatura, precipitação, água, vegetação e elevação formam condições ambientalmente favoráveis aos vetores?",
+      "decision_use": "Estratificação ambiental, seleção de áreas para pesquisa e apoio a campanhas quando combinado com dados epidemiológicos.",
+      "not_for": "Estimar casos, incidência, prevalência, mortalidade ou carga de malária.",
+      "service": "simulation/services/malaria_service.py",
+      "methodology": "docs/MALARIA_SUITABILITY.md",
+      "endpoints": [
+        "GET /api/simulation/gee/malaria-suitability/"
+      ],
+      "spatial_unit": "Raster nacional com escala efetiva aproximada de 5566 m, limitada pelo CHIRPS.",
+      "temporal_unit": "Média anual ou climatologia mensal para o intervalo selecionado.",
+      "data_sources": [
+        "MODIS/061/MOD11A2",
+        "UCSB-CHG/CHIRPS/DAILY",
+        "JRC/GSW1_4/GlobalSurfaceWater",
+        "MODIS/061/MOD13Q1",
+        "USGS/SRTMGL1_003"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "planned",
+        "tests": [
+          "simulation.tests.MalariaParameterValidationTests",
+          "simulation.tests.MalariaSuitabilityViewTests"
+        ]
+      }
+    },
+    {
+      "id": "forest-dynamics",
+      "title": "Dinâmica florestal",
+      "status": "screening",
+      "scientific_question": "Como mudou a cobertura arbórea e quais foram os fluxos brutos entre classes no período selecionado?",
+      "decision_use": "Triagem de mudanças, monitorização e priorização de interpretação visual ou trabalho de campo.",
+      "not_for": "Confirmar desmatamento, restauração ou floresta natural sem verificação independente.",
+      "service": "simulation/services/forest_dynamics_service.py",
+      "methodology": "docs/FOREST_DYNAMICS.md",
+      "endpoints": [
+        "GET|POST /api/simulation/gee/forest-dynamics/"
+      ],
+      "spatial_unit": "Dynamic World nominal de 10 m; estatísticas a 250 m no país, 100 m na província e 30 m em área personalizada.",
+      "temporal_unit": "Compostos anuais de 2016 ao último ano completo, com janela máxima de 10 anos.",
+      "data_sources": [
+        "GOOGLE/DYNAMICWORLD/V1",
+        "FAO/GAUL/2015/level1"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "ESEC Murici é referência conceptual; falta caso automatizado em Moçambique.",
+        "tests": [
+          "simulation.tests.ForestDynamicsParameterValidationTests",
+          "simulation.tests.ForestDynamicsViewTests"
+        ]
+      }
+    },
+    {
+      "id": "google-flood-forecasting",
+      "title": "Google Flood Forecasting",
+      "status": "external-operational-feed",
+      "scientific_question": "Que estados fluviais, cheias rápidas e eventos significativos estão disponíveis para Moçambique na fonte externa?",
+      "decision_use": "Consciência situacional e ligação a contexto administrativo e infraestrutura local.",
+      "not_for": "Substituir avisos oficiais, verificação de campo ou interpretar totais administrativos como população afetada.",
+      "service": "simulation/services/google_flood_service.py",
+      "methodology": "docs/GOOGLE_FLOOD_FORECASTING.md",
+      "endpoints": [
+        "GET /api/simulation/google-floods/status/",
+        "GET /api/simulation/google-floods/forecast/"
+      ],
+      "spatial_unit": "Pontos e polígonos fornecidos pela API, com contexto Admin1/Admin2 opcional.",
+      "temporal_unit": "Estado mais recente e horizonte definido pelo fornecedor.",
+      "data_sources": [
+        "Google Flood Forecasting API v1",
+        "OCHA Mozambique Baseline Data 2025 HNO",
+        "PostGIS local"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "planned after API approval",
+        "tests": [
+          "simulation.tests.GoogleFloodServiceTests",
+          "simulation.tests.GoogleFloodViewTests"
+        ]
+      }
+    },
+    {
+      "id": "livestock-pasture-dynamics",
+      "title": "Dinâmica pecuária e pastagens",
+      "status": "screening",
+      "scientific_question": "Como variam o efetivo pecuário modelado, a pastagem e a pressão indicativa por unidade administrativa?",
+      "decision_use": "Planeamento territorial, comparação temporal e seleção de áreas para validação por censos ou serviços distritais.",
+      "not_for": "Localizar rebanhos, estimar perdas individuais, selecionar agregados familiares ou calcular compensações.",
+      "service": "simulation/services/livestock_dynamics_service.py",
+      "methodology": "docs/LIVESTOCK_PASTURE_DYNAMICS.md",
+      "endpoints": [
+        "GET|POST /api/simulation/gee/livestock-dynamics/"
+      ],
+      "spatial_unit": "Efetivo a 1 km e pastagem de 30 m agregada à grelha pecuária; rankings Admin1/Admin2.",
+      "temporal_unit": "Séries anuais de 2000 a 2022.",
+      "data_sources": [
+        "projects/global-pasture-watch/assets/gld-1km/v1/livestock-headcount-faostat_m",
+        "projects/global-pasture-watch/assets/ggc-30m/v1/grassland_c",
+        "FAO/GAUL/2015/level1 and level2",
+        "OCHA Mozambique Baseline Data 2025 HNO"
+      ],
+      "validation": {
+        "level": "V1",
+        "field_validated": false,
+        "reference_case": "planned",
+        "tests": [
+          "simulation.tests.LivestockDynamicsParameterValidationTests",
+          "simulation.tests.LivestockDynamicsViewTests"
+        ]
+      }
+    }
+  ]
+}

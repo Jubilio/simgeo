@@ -1,5 +1,7 @@
 # SimGeo (GeoRiskSim) 🌍📊
 
+[![SimGeo CI](https://github.com/Jubilio/simgeo/actions/workflows/ci.yml/badge.svg)](https://github.com/Jubilio/simgeo/actions/workflows/ci.yml)
+
 **SimGeo** é um Sistema de Apoio à Decisão Espacial (Spatial Decision Support System - SDSS) projetado para agências humanitárias, governos e ONGs. O objetivo principal da plataforma é simular cenários multi-risco (cheias, ciclones, secas) e intersecionar esses dados com índices socioeconómicos, de vulnerabilidade e exposição de infraestruturas críticas.
 
 ## 🎯 Objetivo
@@ -81,6 +83,14 @@ Para mais detalhes, consulte [spatial-uploads skill](.github/skills/spatial-uplo
 
 Se acaba de se juntar ao projeto, seja bem-vindo! 
 Para configurar o seu ambiente de desenvolvimento e começar a programar o SimGeo na sua máquina, leia atentamente o documento **[SETUP_GUIDE.md](SETUP_GUIDE.md)**.
+
+Simuladores, índices e alterações metodológicas seguem o
+**[Scientific Development Framework](docs/SCIENTIFIC_DEVELOPMENT_FRAMEWORK.md)**.
+O framework exige especificação antes do código, fontes e escalas versionadas,
+nível de validação V0–V4, testes de regressão, limitações explícitas e revisão
+humana. Consulte também a [arquitetura](docs/ARCHITECTURE.md), o
+[registo científico](docs/scientific-modules/registry.json) e as
+[orientações de contribuição](CONTRIBUTING.md).
 
 ## 📄 Licença
 A definir (Open Source / MIT / Proprietária).
