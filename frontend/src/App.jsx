@@ -294,14 +294,23 @@ export default function App() {
     
     try {
       const res = await axios.post(`${API_BASE_URL}upload/`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+        headers: { 'Content-Type': 'multipart/form-data' },
+        // Uploads require a Django session; send its cookie and CSRF token cross-origin.
+        withCredentials: true,
+        withXSRFToken: true,
+        xsrfCookieName: 'csrftoken',
+        xsrfHeaderName: 'X-CSRFToken',
       });
       setUploadSuccess(res.data.message);
       setUploadFile(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       setTimeout(() => setUploadSuccess(null), 5000);
     } catch (err) {
-      setUploadSuccess(`❌ ${err.response?.data?.error || 'Erro no upload'}`);
+      const statusCode = err.response?.status;
+      const message = statusCode === 401 || statusCode === 403
+        ? 'Inicie sessão no backend (/admin/) com uma conta autorizada a importar infraestruturas.'
+        : err.response?.data?.error || 'Erro no upload';
+      setUploadSuccess(`❌ ${message}`);
       setTimeout(() => setUploadSuccess(null), 5000);
     } finally {
       setUploading(false);
