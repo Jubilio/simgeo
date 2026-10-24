@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import tempfile
 import zipfile
@@ -8,14 +9,18 @@ from django.contrib.gis.gdal import DataSource, GDALException
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import transaction
 from rest_framework import status, viewsets
+from rest_framework.authentication import BasicAuthentication, SessionAuthentication
 from rest_framework.parsers import MultiPartParser
-from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import AdministrativeBoundary, Infrastructure, SpatialDataset
+from .permissions import CanImportInfrastructure
 from .serializers import AdministrativeBoundarySerializer, InfrastructureSerializer
 from .upload_utils import find_single_shapefile, safely_extract_zip
+
+
+logger = logging.getLogger(__name__)
 
 
 MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -133,8 +138,9 @@ class FileUploadView(APIView):
     """Upload one Shapefile ZIP or GeoJSON and import infrastructure features."""
 
     parser_classes = (MultiPartParser,)
-    permission_classes = [AllowAny]
-    authentication_classes = []
+    # Uploads write to PostGIS and media storage, so they are never anonymous.
+    permission_classes = [CanImportInfrastructure]
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
 
     def post(self, request, *args, **kwargs):
         file_obj = request.FILES.get("file")
@@ -199,9 +205,10 @@ class FileUploadView(APIView):
                 {"error": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        except Exception as exc:
+        except Exception:
+            logger.exception("Spatial upload failed for %s", file_obj.name)
             _delete_failed_dataset(dataset)
             return Response(
-                {"error": f"Erro a processar ficheiro espacial: {exc}"},
+                {"error": "Erro interno a processar o ficheiro espacial."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

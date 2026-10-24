@@ -70,6 +70,7 @@ Para mais detalhes, consulte [simgeo-chatbot skill](.github/skills/simgeo-chatbo
 ### 📁 Processamento de Uploads Espaciais
 Importação de infraestruturas geográficas personalizadas com suporte GDAL:
 - **Formatos Suportados**: Shapefiles (`.zip`), GeoJSON (`.geojson`)
+- **Acesso Restrito**: exige sessão Django (inicie sessão em `/admin/`) com as permissões `maps.add_spatialdataset` e `maps.add_infrastructure`; pedidos anónimos são rejeitados
 - **Processamento Seguro**: limites de tamanho, bloqueio de path traversal e validação dos componentes do Shapefile
 - **Integração PostGIS**: Conversão automática de geometrias para a base de dados spatial
 - **Mapeamento de Camadas**: nesta versão, apenas infraestruturas

@@ -19,6 +19,7 @@ Esta skill documenta e rege o processo de gestão de ficheiros espaciais enviado
 ## Workflow
 
 1.  **Recepção no Django (`FileUploadView`)**:
+    - Exigir sessão (com CSRF) ou Basic Auth e as permissões `maps.add_spatialdataset` e `maps.add_infrastructure` (`CanImportInfrastructure`). Nunca reabrir o endpoint a anónimos.
     - Verificar se o ficheiro é `.zip` (para Shapefiles) ou `.geojson`.
     - Guardar o ficheiro no modelo `SpatialDataset` imediatamente (em `spatial_datasets/`) para retenção a longo prazo e download.
 
@@ -38,6 +39,7 @@ Esta skill documenta e rege o processo de gestão de ficheiros espaciais enviado
 - Nunca processar um Shapefile isolado (`.shp`) sem exigir que o utilizador envie o pacote compactado (`.zip`).
 - Nunca usar `ZipFile.extractall()` sem validar os caminhos e limites do arquivo.
 - Ficheiros são guardados no `SpatialDataset` de forma segura.
+- Erros inesperados são registados no log; a resposta 500 não expõe detalhes internos.
 - Quaisquer exceções no `DataSource` devolvem um erro legível 400, e não um 500.
 
 ## Example Prompts
